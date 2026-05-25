@@ -14,12 +14,19 @@ client = OpenAI(
     api_key=os.getenv("GROQ_API_KEY"),
 )
 
+# Точные ID Groq (проверены по документации console.groq.com)
+ID_LLAMA_31_8B = "llama-3.1-8b-instant"
+ID_GEMMA2_9B = "gemma2-9b-it"
+ID_MIXTRAL_8X7B = "mixtral-8x7b-32768"
+ID_DEEPSEEK_R1_70B = "deepseek-r1-distill-llama-70b"
+ID_LLAMA_33_70B = "llama-3.3-70b-versatile"
+
 GROQ_MODELS = {
-    "Llama 3.1 8B (Сверхбыстрая, для простых запросов)": "llama-3.1-8b-instant",
-    "Gemma 2 9B (Красивый слог, творческие тексты)": "gemma2-9b-it",
-    "Mixtral 8x7B (Строгая логика, списки, структура)": "mixtral-8x7b-32768",
-    "DeepSeek R1 70B (Самая умная, глубокий пошаговый анализ)": "deepseek-r1-distill-llama-70b",
-    "Llama 3.3 70B (Мощная универсальная, отличный баланс)": "llama-3.3-70b-versatile",
+    "Llama 3.1 8B (Сверхбыстрая, для простых запросов)": ID_LLAMA_31_8B,
+    "Gemma 2 9B (Красивый слог, творческие тексты)": ID_GEMMA2_9B,
+    "Mixtral 8x7B (Строгая логика, списки, структура)": ID_MIXTRAL_8X7B,
+    "DeepSeek R1 70B (Самая умная, глубокий пошаговый анализ)": ID_DEEPSEEK_R1_70B,
+    "Llama 3.3 70B (Мощная универсальная, отличный баланс)": ID_LLAMA_33_70B,
     "Llama 3.2 1B (Моментальный ответ, микро-модель)": "llama-3.2-1b-preview",
     "Llama 3.2 3B (Очень быстрая, для коротких ответов)": "llama-3.2-3b-preview",
     "Llama 3 8B (Базовая быстрая модель)": "llama3-8b-8192",
@@ -79,12 +86,12 @@ MODEL_TRAITS = {
 
 MODEL_COL_HEIGHT = 480
 JUDGE_COL_HEIGHT = 480
-JUDGE_WAITING_HEIGHT = 88
 BRAND_NAME = "⚡ ai Bottleneck"
 WAITING_MSG = "Ожидаю запрос..."
-PRIMARY_TIMEOUT = 10.0
-FALLBACK_MODEL_70B = "llama-3.3-70b-versatile"
-FALLBACK_MODEL_8B = "llama-3.1-8b-instant"
+JUDGE_WAITING_MSG = "Ожидаю финальный сублимированный анализ..."
+PRIMARY_TIMEOUT = 45.0
+FALLBACK_MODEL_70B = ID_LLAMA_33_70B
+FALLBACK_MODEL_8B = ID_LLAMA_31_8B
 FALLBACK_NOTE_70B = (
     "⚠️ [Выбранная модель дала сбой. Авто-переключение на Llama 3.3 70B]:\n\n"
 )
@@ -133,7 +140,11 @@ def ask_groq(model_id: str, prompt: str, timeout: float = PRIMARY_TIMEOUT) -> st
 
 
 def is_waiting(text: str) -> bool:
-    return text == WAITING_MSG
+    return text in (WAITING_MSG, JUDGE_WAITING_MSG)
+
+
+def is_judge_waiting(text: str) -> bool:
+    return text == JUDGE_WAITING_MSG
 
 
 def render_panel(placeholder, text: str):
@@ -149,8 +160,10 @@ def render_panel(placeholder, text: str):
 
 
 def reset_chat():
-    for key in TEXT_KEYS:
-        st.session_state[key] = WAITING_MSG
+    st.session_state.win1_text = WAITING_MSG
+    st.session_state.win2_text = WAITING_MSG
+    st.session_state.win3_text = WAITING_MSG
+    st.session_state.judge_text = JUDGE_WAITING_MSG
 
 
 @st.dialog("Полный текст ответа", width="large")
@@ -178,9 +191,13 @@ def show_welcome():
 
 
 def init_session_text():
-    for key in ("win1_text", "win2_text", "win3_text", "judge_text"):
+    for key in ("win1_text", "win2_text", "win3_text"):
         if key not in st.session_state:
             st.session_state[key] = WAITING_MSG
+    if "judge_text" not in st.session_state:
+        st.session_state.judge_text = JUDGE_WAITING_MSG
+    elif st.session_state.judge_text == WAITING_MSG:
+        st.session_state.judge_text = JUDGE_WAITING_MSG
     if "welcome_seen" not in st.session_state:
         st.session_state.welcome_seen = False
 
@@ -230,7 +247,7 @@ def inject_header_brand():
 
 
 def inject_model_col_styles():
-    """Фиксированная высота окон ответов в трёх верхних колонках."""
+    """Фиксированная высота окон ответов в трёх верхних колонках и блока судьи."""
     st.markdown(
         f"""
         <style>
@@ -321,23 +338,16 @@ model_judge = st.selectbox(
 )
 st.caption(MODEL_TRAITS[model_judge])
 
-judge_expanded = not is_waiting(st.session_state.judge_text)
-
-if judge_expanded:
-    judge_panel = st.container(height=JUDGE_COL_HEIGHT, border=True)
-    judge_btn_area = st.container()
-else:
-    _judge_pad_l, _judge_center, _judge_pad_r = st.columns([2, 2, 2])
-    judge_panel = _judge_center.container(height=JUDGE_WAITING_HEIGHT, border=True)
-    judge_btn_area = _judge_center
-
-with judge_panel:
+with st.container(height=JUDGE_COL_HEIGHT, border=True):
     analysis_placeholder = st.empty()
-    render_panel(analysis_placeholder, st.session_state.judge_text)
+    judge_display = st.session_state.judge_text
+    if is_judge_waiting(judge_display):
+        analysis_placeholder.info(judge_display)
+    else:
+        render_panel(analysis_placeholder, judge_display)
 
-with judge_btn_area:
-    if st.button("🔍 Расширить окно", key="expand_judge", use_container_width=True):
-        expand_panel(f"Блок судьи — {model_judge}", st.session_state.judge_text)
+if st.button("🔍 Расширить окно", key="expand_judge", use_container_width=True):
+    expand_panel(f"Блок судьи — {model_judge}", st.session_state.judge_text)
 
 _chat_col, _reset_col = st.columns([6, 1], gap="small", vertical_alignment="bottom")
 with _reset_col:
