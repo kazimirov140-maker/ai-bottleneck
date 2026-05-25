@@ -1,6 +1,10 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import os
-from openai import OpenAI
+import io
+import json
+import hashlib
+from groq import Groq
 from dotenv import load_dotenv
 
 # НАСТРОЙКА ПУТИ: Безопасный способ найти папку проекта, который работает и на сервере
@@ -9,10 +13,21 @@ dotenv_path = os.path.join(current_dir, '.env')
 
 load_dotenv(dotenv_path)
 
-client = OpenAI(
-    base_url="https://api.groq.com/openai/v1",
-    api_key=os.getenv("GROQ_API_KEY"),
-)
+
+def get_groq_api_key() -> str:
+    """Streamlit Secrets (прод) или .env (локально)."""
+    try:
+        return st.secrets["GROQ_API_KEY"]
+    except (KeyError, FileNotFoundError, AttributeError, TypeError):
+        key = os.getenv("GROQ_API_KEY")
+        if key:
+            return key
+        raise ValueError(
+            "GROQ_API_KEY не найден. Добавьте ключ в st.secrets или в файл .env"
+        ) from None
+
+
+client = Groq(api_key=get_groq_api_key())
 
 # Точные ID Groq (проверены по документации console.groq.com)
 ID_LLAMA_31_8B = "llama-3.1-8b-instant"
@@ -90,53 +105,192 @@ BRAND_NAME = "⚡ ai Bottleneck"
 WAITING_MSG = "Ожидаю запрос..."
 JUDGE_WAITING_MSG = "Ожидаю финальный сублимированный анализ..."
 PRIMARY_TIMEOUT = 45.0
-FALLBACK_MODEL_70B = ID_LLAMA_33_70B
-FALLBACK_MODEL_8B = ID_LLAMA_31_8B
-FALLBACK_NOTE_70B = (
-    "⚠️ [Выбранная модель дала сбой. Авто-переключение на Llama 3.3 70B]:\n\n"
-)
-FALLBACK_NOTE_8B = (
-    "🚨 [Критический сбой сети. Ответ получен от резервной Llama 3.1 8B]:\n\n"
-)
+WHISPER_MODEL = "whisper-large-v3"
+VALID_MODEL_IDS = set(GROQ_MODELS.values())
 TEXT_KEYS = ("win1_text", "win2_text", "win3_text", "judge_text")
+HAS_AUDIO_INPUT = hasattr(st, "audio_input")
 
 
 def model_index(label: str) -> int:
     return MODEL_OPTIONS.index(label)
 
 
-def _groq_single_request(model_id: str, prompt: str, timeout: float) -> str:
-    response = client.chat.completions.create(
-        model=model_id,
-        messages=[{"role": "user", "content": prompt}],
-        timeout=timeout,
-    )
-    content = response.choices[0].message.content
-    if not content:
-        raise ValueError(f"Пустой ответ от модели {model_id}")
-    return content
+def groq_model_id(selectbox_label: str) -> str:
+    """Из selectbox (человеческое имя) → технический ID Groq API."""
+    return GROQ_MODELS[selectbox_label]
 
 
 def ask_groq(model_id: str, prompt: str, timeout: float = PRIMARY_TIMEOUT) -> str:
-    """Каскад: выбранная модель → Llama 3.3 70B → Llama 3.1 8B."""
-    chain: list[tuple[str, str | None]] = [(model_id, None)]
-    if model_id != FALLBACK_MODEL_70B:
-        chain.append((FALLBACK_MODEL_70B, FALLBACK_NOTE_70B))
-    if model_id != FALLBACK_MODEL_8B:
-        chain.append((FALLBACK_MODEL_8B, FALLBACK_NOTE_8B))
+    """Прямой вызов Groq API. Без каскада — ошибки видны в окне."""
+    if model_id not in VALID_MODEL_IDS:
+        return (
+            f"❌ DEBUG: передан неверный model_id '{model_id}'.\n"
+            f"Допустимые ID: {', '.join(sorted(VALID_MODEL_IDS))}"
+        )
 
-    errors: list[str] = []
-    for attempt_model, prefix in chain:
-        try:
-            text = _groq_single_request(attempt_model, prompt, timeout)
-            return f"{prefix}{text}" if prefix else text
-        except Exception as exc:
-            errors.append(f"{attempt_model}: {exc}")
+    try:
+        response = client.chat.completions.create(
+            model=model_id,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=timeout,
+        )
+        content = response.choices[0].message.content
+        if not content:
+            return f"❌ API ERROR [{model_id}]: пустой ответ (content is None)"
+        return content
+    except Exception as exc:
+        exc_type = type(exc).__name__
+        return (
+            f"❌ API ERROR [{model_id}]\n"
+            f"Тип: {exc_type}\n"
+            f"Сообщение: {exc}"
+        )
 
-    return (
-        "❌ Не удалось получить ответ: все три попытки завершились с ошибкой.\n\n"
-        + "\n".join(f"• {err}" for err in errors)
+
+def transcribe_audio(audio_blob: bytes) -> str:
+    """Распознавание голоса через Groq Whisper."""
+    result = client.audio.transcriptions.create(
+        file=("voice.wav", audio_blob),
+        model=WHISPER_MODEL,
+        language="ru",
     )
+    text = getattr(result, "text", None)
+    if text:
+        return text.strip()
+    return str(result).strip()
+
+
+def handle_voice_input(audio_file) -> str | None:
+    """Возвращает текст запроса из новой аудиозаписи или None."""
+    if audio_file is None:
+        return None
+    blob = audio_file.getvalue()
+    if not blob:
+        return None
+    audio_hash = hashlib.md5(blob).hexdigest()
+    if st.session_state.get("processed_audio_hash") == audio_hash:
+        return None
+    st.session_state.processed_audio_hash = audio_hash
+    with st.spinner("🎤 Распознаю речь..."):
+        return transcribe_audio(blob)
+
+
+@st.cache_data(show_spinner=False)
+def synthesize_speech_mp3(text: str) -> bytes:
+    """Озвучка финального ответа (gTTS, русский)."""
+    from gtts import gTTS
+
+    snippet = text[:2500]
+    buf = io.BytesIO()
+    gTTS(text=snippet, lang="ru").write_to_fp(buf)
+    buf.seek(0)
+    return buf.read()
+
+
+def render_tts_controls(text: str, autoplay: bool = False):
+    """Плеер + браузерная озвучка SpeechSynthesis."""
+    if is_judge_waiting(text) or text.startswith("❌"):
+        return
+
+    play_mp3 = st.button("🔊 Прослушать ответ", key="btn_tts_play", use_container_width=True)
+    if play_mp3 or autoplay:
+        try:
+            mp3 = synthesize_speech_mp3(text)
+            st.audio(mp3, format="audio/mp3", autoplay=True)
+        except Exception as exc:
+            st.warning(f"MP3-озвучка недоступна: {exc}")
+
+    tts_payload = json.dumps(text[:3000], ensure_ascii=False)
+    auto_js = "speak();" if autoplay else ""
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            const text = {tts_payload};
+            function speak() {{
+                if (!("speechSynthesis" in window)) return;
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.lang = "ru-RU";
+                u.rate = 0.95;
+                window.speechSynthesis.speak(u);
+            }}
+            window.speakJudgeAnswer = speak;
+            {auto_js}
+        }})();
+        </script>
+        <button onclick="window.speakJudgeAnswer && window.speakJudgeAnswer()"
+                style="margin-top:0.35rem;padding:0.45rem 0.9rem;border-radius:0.5rem;
+                       border:1px solid #ccc;background:#f7f7f7;cursor:pointer;width:100%;">
+            🔊 Озвучить в браузере
+        </button>
+        """,
+        height=70,
+    )
+
+
+def run_query_pipeline(
+    user_input: str,
+    model_win1: str,
+    model_win2: str,
+    model_win3: str,
+    model_judge: str,
+    llama_placeholder,
+    llama_70b_placeholder,
+    gemma_placeholder,
+    analysis_placeholder,
+):
+    id_win1 = groq_model_id(model_win1)
+    id_win2 = groq_model_id(model_win2)
+    id_win3 = groq_model_id(model_win3)
+    id_judge = groq_model_id(model_judge)
+
+    llama_placeholder.warning(f"{model_win1} думает...")
+    llama_70b_placeholder.warning(f"{model_win2} думает...")
+    gemma_placeholder.warning(f"{model_win3} думает...")
+    analysis_placeholder.warning(f"{model_judge} ожидает ответы окон для синтеза...")
+
+    llama_ans = ask_groq(id_win1, user_input)
+    st.session_state.win1_text = llama_ans
+    render_panel(llama_placeholder, llama_ans)
+
+    llama_70b_ans = ask_groq(id_win2, user_input)
+    st.session_state.win2_text = llama_70b_ans
+    render_panel(llama_70b_placeholder, llama_70b_ans)
+
+    gemma_ans = ask_groq(id_win3, user_input)
+    st.session_state.win3_text = gemma_ans
+    render_panel(gemma_placeholder, gemma_ans)
+
+    analysis_placeholder.warning(f"{model_judge} проводит синтез...")
+
+    synthesis_prompt = f"""
+    Перед тобой три независимых ответа нейросетей на один и тот же вопрос: "{user_input}".
+
+    СТРОГОЕ АРХИТЕКТУРНОЕ ТРЕБОВАНИЕ:
+    В самом начале своего ответа (перед финальным синтезом) ты обязан сделать краткий
+    критический разбор полученных ответов. Если какая-то из трёх моделей допустила
+    фактологическую неточность, логическую ошибку или явную галлюцинацию, обязательно
+    укажи на это прямо, назвав модель (например: "Llama 3.1 ошиблась в...").
+    Если все модели ответили корректно, кратко отметь это.
+
+    После критического разбора выдай финальный синтез: сопоставь ответы, убери лишнюю воду,
+    исправь нестыковки и дай один структурированный исчерпывающий итог на русском языке.
+
+    Окно 1 — модель «{model_win1}»:
+    {llama_ans}
+
+    Окно 2 — модель «{model_win2}»:
+    {llama_70b_ans}
+
+    Окно 3 — модель «{model_win3}»:
+    {gemma_ans}
+    """
+
+    final_analysis = ask_groq(id_judge, synthesis_prompt)
+    st.session_state.judge_text = final_analysis
+    st.session_state.tts_autoplay = True
+    render_panel(analysis_placeholder, final_analysis)
 
 
 def is_waiting(text: str) -> bool:
@@ -151,7 +305,7 @@ def render_panel(placeholder, text: str):
     """Отрисовка замороженного ответа из session_state без сброса при rerun."""
     if is_waiting(text):
         placeholder.info(text)
-    elif text.startswith("❌") or text.startswith("Ошибка"):
+    elif text.startswith("❌") or text.startswith("Ошибка") or "API ERROR" in text:
         placeholder.error(text)
     elif text.startswith("⚠️") or text.startswith("🚨"):
         placeholder.warning(text)
@@ -164,6 +318,9 @@ def reset_chat():
     st.session_state.win2_text = WAITING_MSG
     st.session_state.win3_text = WAITING_MSG
     st.session_state.judge_text = JUDGE_WAITING_MSG
+    st.session_state.pop("processed_audio_hash", None)
+    st.session_state.pop("pending_user_input", None)
+    st.session_state.pop("tts_autoplay", None)
 
 
 @st.dialog("Полный текст ответа", width="large")
@@ -247,7 +404,7 @@ def inject_header_brand():
 
 
 def inject_model_col_styles():
-    """Фиксированная высота окон ответов в трёх верхних колонках и блока судьи."""
+    """Фиксированная высота окон: три колонки + широкий блок судьи."""
     st.markdown(
         f"""
         <style>
@@ -257,6 +414,9 @@ def inject_model_col_styles():
             min-height: {MODEL_COL_HEIGHT}px !important;
             max-height: {MODEL_COL_HEIGHT}px !important;
             overflow-y: auto;
+        }}
+        div[data-testid="stVerticalBlockBorderWrapper"]:has([data-testid="stAlert"]) {{
+            width: 100% !important;
         }}
         </style>
         """,
@@ -349,62 +509,52 @@ with st.container(height=JUDGE_COL_HEIGHT, border=True):
 if st.button("🔍 Расширить окно", key="expand_judge", use_container_width=True):
     expand_panel(f"Блок судьи — {model_judge}", st.session_state.judge_text)
 
-_chat_col, _reset_col = st.columns([6, 1], gap="small", vertical_alignment="bottom")
+tts_autoplay = st.session_state.pop("tts_autoplay", False)
+render_tts_controls(st.session_state.judge_text, autoplay=tts_autoplay)
+
+_chat_col, _mic_col, _reset_col = st.columns([5, 1, 1], gap="small", vertical_alignment="bottom")
 with _reset_col:
     if st.button("🧹 Новый чат", key="btn_new_chat", use_container_width=True):
         reset_chat()
         st.rerun()
+with _mic_col:
+    if HAS_AUDIO_INPUT:
+        audio_recording = st.audio_input(
+            "🎤",
+            key="voice_input",
+            label_visibility="collapsed",
+            sample_rate=16000,
+        )
+    else:
+        audio_recording = None
+        st.caption("🎤")
 with _chat_col:
     user_input = st.chat_input("Введите ваш вопрос для всех нейросетей сразу...")
 
+voice_text = None
+if HAS_AUDIO_INPUT and audio_recording is not None:
+    try:
+        voice_text = handle_voice_input(audio_recording)
+    except Exception as exc:
+        st.error(f"❌ Ошибка распознавания речи: {type(exc).__name__}: {exc}")
+
+if st.session_state.get("pending_user_input"):
+    user_input = st.session_state.pop("pending_user_input")
+
+if voice_text:
+    st.session_state.pending_user_input = voice_text
+    st.rerun()
+
 if user_input:
-    id_win1 = GROQ_MODELS[model_win1]
-    id_win2 = GROQ_MODELS[model_win2]
-    id_win3 = GROQ_MODELS[model_win3]
-    id_judge = GROQ_MODELS[model_judge]
-
-    llama_placeholder.warning(f"{model_win1} думает...")
-    llama_70b_placeholder.warning(f"{model_win2} думает...")
-    gemma_placeholder.warning(f"{model_win3} думает...")
-    analysis_placeholder.warning(f"{model_judge} ожидает ответы окон для синтеза...")
-
-    llama_ans = ask_groq(id_win1, user_input)
-    st.session_state.win1_text = llama_ans
-    render_panel(llama_placeholder, llama_ans)
-
-    llama_70b_ans = ask_groq(id_win2, user_input)
-    st.session_state.win2_text = llama_70b_ans
-    render_panel(llama_70b_placeholder, llama_70b_ans)
-
-    gemma_ans = ask_groq(id_win3, user_input)
-    st.session_state.win3_text = gemma_ans
-    render_panel(gemma_placeholder, gemma_ans)
-
-    analysis_placeholder.warning(f"{model_judge} проводит синтез...")
-
-    synthesis_prompt = f"""
-    Перед тобой три независимых ответа нейросетей на один и тот же вопрос: "{user_input}".
-
-    СТРОГОЕ АРХИТЕКТУРНОЕ ТРЕБОВАНИЕ:
-    В самом начале своего ответа (перед финальным синтезом) ты обязан сделать краткий
-    критический разбор полученных ответов. Если какая-то из трёх моделей допустила
-    фактологическую неточность, логическую ошибку или явную галлюцинацию, обязательно
-    укажи на это прямо, назвав модель (например: "Llama 3.1 ошиблась в...").
-    Если все модели ответили корректно, кратко отметь это.
-
-    После критического разбора выдай финальный синтез: сопоставь ответы, убери лишнюю воду,
-    исправь нестыковки и дай один структурированный исчерпывающий итог на русском языке.
-
-    Окно 1 — модель «{model_win1}»:
-    {llama_ans}
-
-    Окно 2 — модель «{model_win2}»:
-    {llama_70b_ans}
-
-    Окно 3 — модель «{model_win3}»:
-    {gemma_ans}
-    """
-
-    final_analysis = ask_groq(id_judge, synthesis_prompt)
-    st.session_state.judge_text = final_analysis
-    render_panel(analysis_placeholder, final_analysis)
+    run_query_pipeline(
+        user_input,
+        model_win1,
+        model_win2,
+        model_win3,
+        model_judge,
+        llama_placeholder,
+        llama_70b_placeholder,
+        gemma_placeholder,
+        analysis_placeholder,
+    )
+    st.rerun()
