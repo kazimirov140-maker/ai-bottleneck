@@ -1,95 +1,84 @@
 import streamlit as st
 import os
-from groq import Groq
+from openai import OpenAI
+from dotenv import load_dotenv
 
-# Настройка страницы
-st.set_page_config(page_title="AI Bottleneck", layout="wide")
+# НАСТРОЙКА ПУТИ: Находим точную папку, где лежит этот файл app.py
+current_dir = os.path.dirname(os.path.abspath(__file__))
+dotenv_path = os.path.join(current_dir, '.env')
 
-# Инициализация клиента Groq
-api_key = os.environ.get("GROQ_API_KEY", "")
-client = Groq(api_key=api_key) if api_key else None
+# Загружаем файл .env строго из папки проекта, чтобы Python его не потерял
+load_dotenv(dotenv_path)
 
-def call_model(model_name, user_query):
-    if not client:
-        return "Ошибка: API ключ Groq не найден."
+# Инициализируем клиент Groq, безопасно забирая ключ из .env
+client = OpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=os.getenv("GROQ_API_KEY"),
+)
+
+# Функция для быстрой отправки запросов в Groq
+def ask_groq(model_id, prompt):
     try:
-        completion = client.chat.completions.create(
-            model=model_name,
-            messages=[{"role": "user", "content": user_query}],
-            temperature=0.7,
-            max_tokens=1024,
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        return f"Ошибка модели {model_name}: {str(e)}"
-
-def analyze_responses(user_query, r1, r2, r3):
-    if not client:
-        return "Ошибка: API ключ Groq не найден."
-    
-    prompt = f"""
-    Проанализируй эти 3 ответа ИИ на вопрос: "{user_query}"
-    
-    Ответ 1: {r1}
-    Ответ 2: {r2}
-    Ответ 3: {r3}
-    
-    Убери ошибки, объедини лучшие мысли и сделайте один точный, структурированный финальный ответ без повторений.
-    """
-    try:
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        response = client.chat.completions.create(
+            model=model_id,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.4,
-            max_tokens=2048,
+            timeout=15.0
         )
-        return completion.choices[0].message.content
+        return response.choices[0].message.content
     except Exception as e:
-        return f"Ошибка анализа: {str(e)}"
+        return f"Ошибка модели {model_id}: {str(e)}"
 
-# --- ИНТЕРФЕЙС ПРИЛОЖЕНИЯ ---
-st.title("🌪 AI Bottleneck")
+# Настройка интерфейса приложения Streamlit
+st.set_page_config(page_title="AI Bottleneck", layout="wide")
+st.title("⚡ Сверхбыстрый хаб AI Bottleneck (База: Groq)")
 
-# Поле ввода и кнопка — строго вверху (оригинальное утреннее расположение)
-user_input = st.text_area("Введите ваш запрос или задачу:", placeholder="Например: Напиши план продвижения...")
+# Создаем две колонки для базовых моделей
+col1, col2 = st.columns(2)
 
-if st.button("Запустить анализ", type="primary"):
-    if not user_input.strip():
-        st.warning("Пожалуйста, введите текст запроса.")
-    else:
-        # Окна моделей создаются и отображаются внутри условия нажатия кнопки
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("### 🤖 Модель 1 (Llama 8b)")
-            p1 = st.empty()
-            p1.info("Генерация ответа...")
-            
-        with col2:
-            st.markdown("### 🤖 Модель 2 (Gemma 2)")
-            p2 = st.empty()
-            p2.info("Генерация ответа...")
-            
-        with col3:
-            st.markdown("### 🤖 Модель 3 (Mixtral)")
-            p3 = st.empty()
-            p3.info("Генерация ответа...")
-            
-        st.markdown("---")
-        st.markdown("### 🧠 Финальная выжимка и Экспертный анализ")
-        analysis_placeholder = st.empty()
-        analysis_placeholder.info("Ожидание ответов моделей для сквозного анализа...")
-        
-        # Логика работы
-        resp1 = call_model("llama3-8b-8192", user_input)
-        p1.write(resp1)
-        
-        resp2 = call_model("gemma2-9b-it", user_input)
-        p2.write(resp2)
-        
-        resp3 = call_model("mixtral-8x7b-32768", user_input)
-        p3.write(resp3)
-        
-        analysis_placeholder.info("Анализатор делает финальную выжимку...")
-        final_analysis = analyze_responses(user_input, resp1, resp2, resp3)
-        analysis_placeholder.write(final_analysis)
+with col1:
+    st.subheader("🇺🇸 Llama 3.1 8B (Умная)")
+    llama_placeholder = st.empty()
+    llama_placeholder.info("Ожидаю запрос...")
+
+with col2:
+    st.subheader("🧠 Llama 3.3 70B (Тяжелая)")
+    gemma_placeholder = st.empty()
+    gemma_placeholder.info("Ожидаю запрос...")
+
+st.divider()
+
+# Секция для финального аналитика
+st.subheader("🧐 Финальный Анализ и Синтез (Llama 3.3 70B)")
+analysis_placeholder = st.empty()
+analysis_placeholder.info("Анализатор готов к работе.")
+
+# Поле ввода внизу страницы
+user_input = st.chat_input("Введите ваш вопрос для всех нейросетей сразу...")
+
+if user_input:
+    # Ставим статусы ожидания «Думает...»
+    llama_placeholder.warning("Llama 3.1 думает...")
+    gemma_placeholder.warning("Llama 3.3 думает...")
+    analysis_placeholder.warning("Ожидание ответов для проведения синтеза...")
+    
+    # 1. Запрос к новой Llama 3.1
+    llama_ans = ask_groq("llama-3.1-8b-instant", user_input)
+    llama_placeholder.success(llama_ans)
+    
+    # 2. Запрос к мощной Llama 3.3 70B (вместо отключенной Gemma)
+    gemma_ans = ask_groq("llama-3.3-70b-versatile", user_input)
+    gemma_placeholder.success(gemma_ans)
+    
+    # 3. Финальный синтез силами тяжелой модели Llama 3.3 70B
+    analysis_placeholder.warning("Анализатор проводит финальный синтез...")
+    
+    synthesis_prompt = f"""
+    Перед тобой два ответа нейросетей на один и тот же вопрос: "{user_input}".
+    Твоя задача: сопоставить их, убрать лишнее и выдать один точный, краткий сухой остаток на русском языке.
+    
+    Ответ первой модели: {llama_ans}
+    Ответ второй модели: {gemma_ans}
+    """
+    
+    final_analysis = ask_groq("llama-3.3-70b-versatile", synthesis_prompt)
+    analysis_placeholder.write(final_analysis)
