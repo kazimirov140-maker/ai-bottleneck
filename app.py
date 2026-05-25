@@ -78,7 +78,9 @@ MODEL_TRAITS = {
 }
 
 MODEL_COL_HEIGHT = 480
-JUDGE_COL_HEIGHT = 420
+JUDGE_COL_HEIGHT = 480
+JUDGE_WAITING_HEIGHT = 88
+BRAND_NAME = "⚡ ai Bottleneck"
 WAITING_MSG = "Ожидаю запрос..."
 PRIMARY_TIMEOUT = 10.0
 FALLBACK_MODEL_70B = "llama-3.3-70b-versatile"
@@ -184,30 +186,44 @@ def init_session_text():
 
 
 def inject_header_brand():
-    """Название в верхней панели Streamlit, на одной линии с Share / ⋮."""
+    """Полное название в верхней панели Streamlit + отступ до сетки колонок."""
     st.markdown(
-        """
+        f"""
         <style>
-        .block-container {
-            padding-top: 0.75rem !important;
-        }
-        header[data-testid="stHeader"] {
+        header[data-testid="stHeader"] {{
             background: transparent;
-        }
-        [data-testid="stLogo"] {
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 0.35rem;
-        }
-        [data-testid="stLogo"]::after {
-            content: "ai Bottleneck";
-            font-size: 0.8rem;
+            position: relative;
+        }}
+        header[data-testid="stHeader"]::after {{
+            content: "{BRAND_NAME}";
+            position: absolute;
+            left: 3.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.85rem;
             font-weight: 600;
             letter-spacing: 0.02em;
-            line-height: 1;
+            line-height: 1.2;
             white-space: nowrap;
-        }
+            z-index: 999;
+            pointer-events: none;
+        }}
+        [data-testid="stLogo"] {{
+            visibility: hidden !important;
+            width: 2.75rem !important;
+            min-width: 2.75rem !important;
+            overflow: hidden !important;
+        }}
+        .block-container {{
+            padding-top: 1.25rem !important;
+        }}
+        .brand-header-gap {{
+            display: block;
+            height: 1.1rem;
+            margin-bottom: 0.35rem;
+        }}
         </style>
+        <div class="brand-header-gap" aria-hidden="true"></div>
         """,
         unsafe_allow_html=True,
     )
@@ -232,12 +248,11 @@ def inject_model_col_styles():
 
 
 st.set_page_config(
-    page_title="⚡ ai Bottleneck",
+    page_title=BRAND_NAME,
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
-st.logo("⚡", size="small", icon_image=None)
 inject_header_brand()
 inject_model_col_styles()
 init_session_text()
@@ -306,12 +321,23 @@ model_judge = st.selectbox(
 )
 st.caption(MODEL_TRAITS[model_judge])
 
-with st.container(height=JUDGE_COL_HEIGHT, border=True):
+judge_expanded = not is_waiting(st.session_state.judge_text)
+
+if judge_expanded:
+    judge_panel = st.container(height=JUDGE_COL_HEIGHT, border=True)
+    judge_btn_area = st.container()
+else:
+    _judge_pad_l, _judge_center, _judge_pad_r = st.columns([2, 2, 2])
+    judge_panel = _judge_center.container(height=JUDGE_WAITING_HEIGHT, border=True)
+    judge_btn_area = _judge_center
+
+with judge_panel:
     analysis_placeholder = st.empty()
     render_panel(analysis_placeholder, st.session_state.judge_text)
 
-if st.button("🔍 Расширить окно", key="expand_judge", use_container_width=True):
-    expand_panel(f"Блок судьи — {model_judge}", st.session_state.judge_text)
+with judge_btn_area:
+    if st.button("🔍 Расширить окно", key="expand_judge", use_container_width=True):
+        expand_panel(f"Блок судьи — {model_judge}", st.session_state.judge_text)
 
 _chat_col, _reset_col = st.columns([6, 1], gap="small", vertical_alignment="bottom")
 with _reset_col:
