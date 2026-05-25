@@ -29,73 +29,66 @@ def get_groq_api_key() -> str:
 
 client = Groq(api_key=get_groq_api_key())
 
-# Точные ID Groq (проверены по документации console.groq.com)
+# Рабочие ID Groq (console.groq.com/docs/models, март 2026)
 ID_LLAMA_31_8B = "llama-3.1-8b-instant"
-ID_GEMMA2_9B = "gemma2-9b-it"
-ID_MIXTRAL_8X7B = "mixtral-8x7b-32768"
-ID_DEEPSEEK_R1_70B = "deepseek-r1-distill-llama-70b"
 ID_LLAMA_33_70B = "llama-3.3-70b-versatile"
+ID_LLAMA_4_SCOUT = "meta-llama/llama-4-scout-17b-16e-instruct"
+ID_QWEN3_32B = "qwen/qwen3-32b"
+ID_GPT_OSS_20B = "openai/gpt-oss-20b"
+ID_GPT_OSS_120B = "openai/gpt-oss-120b"
+ID_GPT_OSS_SAFEGUARD = "openai/gpt-oss-safeguard-20b"
 
+# Сняты с API — убраны из списка: gemma2-9b-it, mixtral-8x7b-32768,
+# deepseek-r1-distill-llama-70b, llama3-8b-8192, llama3-70b-8192, llama-3.2-*-preview
+
+LABEL_JUDGE_SMARTEST = "GPT-OSS 120B (Самая умная, глубокий синтез)"
+
+# Только модели с рабочими ID; название в UI = реальная модель на Groq
 GROQ_MODELS = {
-    "Llama 3.1 8B (Сверхбыстрая, для простых запросов)": ID_LLAMA_31_8B,
-    "Gemma 2 9B (Красивый слог, творческие тексты)": ID_GEMMA2_9B,
-    "Mixtral 8x7B (Строгая логика, списки, структура)": ID_MIXTRAL_8X7B,
-    "DeepSeek R1 70B (Самая умная, глубокий пошаговый анализ)": ID_DEEPSEEK_R1_70B,
-    "Llama 3.3 70B (Мощная универсальная, отличный баланс)": ID_LLAMA_33_70B,
-    "Llama 3.2 1B (Моментальный ответ, микро-модель)": "llama-3.2-1b-preview",
-    "Llama 3.2 3B (Очень быстрая, для коротких ответов)": "llama-3.2-3b-preview",
-    "Llama 3 8B (Базовая быстрая модель)": "llama3-8b-8192",
-    "Llama 3 70B (Стабильная тяжелая модель)": "llama3-70b-8192",
-    "Llama Guard 3 8B (Анализ безопасности текста)": "llama-guard-3-8b",
+    "Llama 3.1 8B (Сверхбыстрая, production)": ID_LLAMA_31_8B,
+    "Llama 4 Scout 17B (Творческие тексты, preview)": ID_LLAMA_4_SCOUT,
+    "Llama 3.3 70B (Универсальная, production)": ID_LLAMA_33_70B,
+    "Qwen 3 32B (Логика и структура, preview)": ID_QWEN3_32B,
+    "GPT-OSS 20B (Быстрая и умная, production)": ID_GPT_OSS_20B,
+    LABEL_JUDGE_SMARTEST: ID_GPT_OSS_120B,
+    "GPT-OSS Safeguard 20B (Модерация, preview)": ID_GPT_OSS_SAFEGUARD,
 }
 
 MODEL_OPTIONS = list(GROQ_MODELS.keys())
 
-DEFAULT_WIN1 = "Llama 3.1 8B (Сверхбыстрая, для простых запросов)"
-DEFAULT_WIN2 = "Gemma 2 9B (Красивый слог, творческие тексты)"
-DEFAULT_WIN3 = "Mixtral 8x7B (Строгая логика, списки, структура)"
-DEFAULT_JUDGE = "DeepSeek R1 70B (Самая умная, глубокий пошаговый анализ)"
+DEFAULT_WIN1 = "Llama 3.1 8B (Сверхбыстрая, production)"
+DEFAULT_WIN2 = "Llama 4 Scout 17B (Творческие тексты, preview)"
+DEFAULT_WIN3 = "Qwen 3 32B (Логика и структура, preview)"
+DEFAULT_JUDGE = LABEL_JUDGE_SMARTEST
 
 MODEL_TRAITS = {
-    "Llama 3.1 8B (Сверхбыстрая, для простых запросов)": (
-        "✅ Плюсы: максимальная скорость, низкая задержка, идеальна для FAQ и черновиков. "
-        "⚠️ Минусы: слабее на сложной логике и длинных рассуждениях."
+    "Llama 3.1 8B (Сверхбыстрая, production)": (
+        "✅ llama-3.1-8b-instant — самая быстрая production-модель. "
+        "⚠️ Слабее на сложной логике."
     ),
-    "Gemma 2 9B (Красивый слог, творческие тексты)": (
-        "✅ Плюсы: живой стиль, хороша для постов, идей и перефразирования. "
-        "⚠️ Минусы: может уходить в «воду», хуже на жёстких фактах."
+    "Llama 4 Scout 17B (Творческие тексты, preview)": (
+        "✅ meta-llama/llama-4-scout-17b-16e-instruct — живой стиль, окно 2. "
+        "⚠️ Preview: может измениться на Groq."
     ),
-    "Mixtral 8x7B (Строгая логика, списки, структура)": (
-        "✅ Плюсы: чёткая структура, списки, сравнения, пошаговые планы. "
-        "⚠️ Минусы: медленнее лёгких 8B-моделей."
+    "Llama 3.3 70B (Универсальная, production)": (
+        "✅ llama-3.3-70b-versatile — сильный баланс качества и скорости. "
+        "⚠️ Дороже и медленнее 8B."
     ),
-    "DeepSeek R1 70B (Самая умная, глубокий пошаговый анализ)": (
-        "✅ Плюсы: глубокий разбор, цепочка рассуждений, синтез и проверка. "
-        "⚠️ Минусы: самая медленная, ответы длиннее."
+    "Qwen 3 32B (Логика и структура, preview)": (
+        "✅ qwen/qwen3-32b — списки, аналитика, структура, окно 3. "
+        "⚠️ Preview-модель."
     ),
-    "Llama 3.3 70B (Мощная универсальная, отличный баланс)": (
-        "✅ Плюсы: универсал — код, анализ, тексты в одном окне. "
-        "⚠️ Минусы: выше нагрузка и время ответа, чем у 8B."
+    "GPT-OSS 20B (Быстрая и умная, production)": (
+        "✅ openai/gpt-oss-20b — ~1000 t/s, хорошее качество. "
+        "⚠️ Уступает 120B на сложном синтезе."
     ),
-    "Llama 3.2 1B (Моментальный ответ, микро-модель)": (
-        "✅ Плюсы: почти мгновенный отклик, минимум ресурсов. "
-        "⚠️ Минусы: поверхностные ответы, риск галлюцинаций."
+    LABEL_JUDGE_SMARTEST: (
+        "✅ openai/gpt-oss-120b — самая умная, окно 4 (судья). "
+        "⚠️ Дольше ждать ответ."
     ),
-    "Llama 3.2 3B (Очень быстрая, для коротких ответов)": (
-        "✅ Плюсы: быстрые краткие ответы, лёгкая модель. "
-        "⚠️ Минусы: ограничена сложными задачами."
-    ),
-    "Llama 3 8B (Базовая быстрая модель)": (
-        "✅ Плюсы: проверенная база, предсказуемое качество. "
-        "⚠️ Минусы: уступает свежим Llama 3.1/3.3."
-    ),
-    "Llama 3 70B (Стабильная тяжелая модель)": (
-        "✅ Плюсы: стабильность на объёмных запросах. "
-        "⚠️ Минусы: медленнее и тяжелее новых 70B."
-    ),
-    "Llama Guard 3 8B (Анализ безопасности текста)": (
-        "✅ Плюсы: модерация, риски, токсичность, политики контента. "
-        "⚠️ Минусы: не для генерации обычных ответов пользователю."
+    "GPT-OSS Safeguard 20B (Модерация, preview)": (
+        "✅ openai/gpt-oss-safeguard-20b — проверка безопасности текста. "
+        "⚠️ Не для обычных ответов пользователю."
     ),
 }
 
@@ -338,7 +331,7 @@ def show_welcome():
 
 Мы добились этого благодаря уникальной логике: ваш запрос одновременно отправляется
 сразу в три разные независимые нейросети. После этого четвёртая, самая умная модель
-(DeepSeek), критически анализирует все три полученных варианта, убирает из них ошибки,
+(GPT-OSS 120B), критически анализирует все три полученных варианта, убирает из них ошибки,
 соединяет лучшие мысли и сублимирует их в один идеальный, исчерпывающий ответ.
         """
     )
@@ -357,6 +350,9 @@ def init_session_text():
         st.session_state.judge_text = JUDGE_WAITING_MSG
     if "welcome_seen" not in st.session_state:
         st.session_state.welcome_seen = False
+    for select_key in ("select_win1", "select_win2", "select_win3", "select_judge"):
+        if select_key in st.session_state and st.session_state[select_key] not in MODEL_OPTIONS:
+            del st.session_state[select_key]
 
 
 def inject_header_brand():
