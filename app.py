@@ -3,8 +3,8 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 
-# НАСТРОЙКА ПУТИ: Находим точную папку, где лежит этот файл app.py
-current_dir = os.path.dirname(os.path.abspath(file))
+# НАСТРОЙКА ПУТИ: Безопасный способ найти папку проекта, который работает и на сервере
+current_dir = os.getcwd()
 dotenv_path = os.path.join(current_dir, '.env')
 
 # Загружаем файл .env строго из папки проекта, чтобы Python его не потерял
@@ -62,7 +62,7 @@ with col3:
 
 st.divider()
 
-# Секция для финального аналитика — строго DeepSeek, как договаривались!
+# Секция для финального аналитика — строго DeepSeek!
 st.subheader("🧠 Финальный Анализ и Синтез (DeepSeek)")
 analysis_placeholder = st.empty()
 analysis_placeholder.info("Анализатор DeepSeek готов к работе.")
