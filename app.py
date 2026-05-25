@@ -2,34 +2,23 @@ import streamlit as st
 import os
 from groq import Groq
 
-# Настройка страницы
-st.set_page_config(page_title="AI Bottleneck Hub", layout="wide")
+# Настройка страницы — имя в левом верхнем углу вкладки
+st.set_page_config(page_title="AI Bottleneck", layout="wide")
 
-# Приветственная плашка (Онбординг)
-if "welcome_shown" not in st.session_state:
-    st.session_state.welcome_shown = False
+# --- БОКОВАЯ ПАНЕЛЬ (Левый верхний угол) ---
+with st.sidebar:
+    st.title("🌪 AI Bottleneck")
+    st.markdown("---")
+    # Ввод API ключа в левой панели, как было утром
+    api_key_input = st.text_input("Введите Groq API Key:", type="password")
 
-if not st.session_state.welcome_shown:
-    @st.dialog("Добро пожаловать в AI Bottleneck Hub!")
-    def show_welcome():
-        st.write(
-            "Этот хаб создан для того, чтобы вы гарантированно получали лучшие варианты ответов от ИИ. "
-            "Наша система опрашивает сразу 3 независимые модели, анализирует их ответы, "
-            "убирает ошибки и выдает вам один — максимально точный и качественный результат."
-        )
-        if st.button("Начать работу", type="primary", use_container_width=True):
-            st.session_state.welcome_shown = True
-            st.rerun()
-            
-    show_welcome()
-
-# Инициализация Groq
-api_key = os.environ.get("GROQ_API_KEY", "")
+# Определение рабочего ключа (из панели или из секретов сервера)
+api_key = api_key_input if api_key_input else os.environ.get("GROQ_API_KEY", "")
 client = Groq(api_key=api_key) if api_key else None
 
 def call_model(model_name, user_query):
     if not client:
-        return "Ошибка: API ключ Groq не найден."
+        return "Ошибка: API ключ Groq не указан."
     try:
         completion = client.chat.completions.create(
             model=model_name,
@@ -43,7 +32,7 @@ def call_model(model_name, user_query):
 
 def analyze_responses(user_query, r1, r2, r3):
     if not client:
-        return "Ошибка: API ключ Groq не найден."
+        return "Ошибка: API ключ Groq не указан."
     
     prompt = f"""
     Вы выступаете в роли главного эксперта-аналитика.
@@ -57,7 +46,7 @@ def analyze_responses(user_query, r1, r2, r3):
     Ответ 2:
     {r2}
     ---
-    Let-3:
+    Ответ 3:
     {r3}
     ---
     
@@ -74,16 +63,14 @@ def analyze_responses(user_query, r1, r2, r3):
     except Exception as e:
         return f"Ошибка анализа: {str(e)}"
 
-# --- ИНТЕРФЕЙС ПРИЛОЖЕНИЯ ---
-st.title("🌪 AI Bottleneck Hub")
-
+# --- ОСНОВНОЙ ЭКРАН ---
 user_input = st.text_area("Введите ваш запрос или задачу:", placeholder="Например: Напиши план продвижения...")
 
 if st.button("Запустить анализ", type="primary"):
     if not user_input.strip():
         st.warning("Пожалуйста, введите текст запроса.")
     else:
-        # Возвращаем наши классические 3 окна на экран
+        # Наши классические 3 окна на экране
         col1, col2, col3 = st.columns(3)
         
         with col1:
@@ -106,7 +93,7 @@ if st.button("Запустить анализ", type="primary"):
         analysis_placeholder = st.empty()
         analysis_placeholder.info("Ожидание ответов моделей...")
         
-        # Запуск логики
+        # Логика запросов
         resp1 = call_model("llama3-8b-8192", user_input)
         p1.write(resp1)
         
