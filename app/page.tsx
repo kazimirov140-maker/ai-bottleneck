@@ -39,10 +39,16 @@ export default function Home() {
 
   const [analystPrompt, setAnalystPrompt] = useState(T[lang].defaultAnalystPrompt);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const win1Ref = useRef<HTMLDivElement>(null);
+  const win2Ref = useRef<HTMLDivElement>(null);
+  const win3Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (loadingPhase === "idle") {
        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+       win1Ref.current?.scrollIntoView({ behavior: "smooth" });
+       win2Ref.current?.scrollIntoView({ behavior: "smooth" });
+       win3Ref.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [sessions, activeId, loadingPhase]);
 
@@ -224,6 +230,7 @@ export default function Home() {
                         </div>
                       ))}
                       {loadingPhase === "workers" && <div className="text-primary animate-pulse text-sm">⏳ Генерация...</div>}
+                      <div ref={num === 1 ? win1Ref : num === 2 ? win2Ref : win3Ref} />
                     </div>
                   </div>
                 );
