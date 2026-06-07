@@ -1,5 +1,5 @@
 import { T, Lang } from "@/lib/i18n";
-import { Play, Mic, MicOff, Paperclip } from "lucide-react";
+import { Play, Mic, MicOff } from "lucide-react";
 
 export function ChatInput({ 
   lang, input, setInput, isRecording, toggleVoice, handleSend, loadingPhase 
@@ -9,9 +9,7 @@ export function ChatInput({
       <div className="max-w-[1200px] mx-auto relative pointer-events-auto">
         <div className="glass-panel p-2 pl-4 flex items-end gap-2 border border-white/15 shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           
-          <button onClick={() => alert(T[lang].file_notice_text)} className="p-3 text-white/50 hover:text-white transition hover:bg-white/10 rounded-xl">
-            <Paperclip className="w-5 h-5" />
-          </button>
+
 
           <textarea 
             value={input}
