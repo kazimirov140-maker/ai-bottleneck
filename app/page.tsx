@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { T, WORKER_MODELS, JUDGE_MODELS, Lang } from "@/lib/i18n";
-import { Menu, Expand } from "lucide-react";
+import { Menu, PanelLeftClose, Expand } from "lucide-react";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatInput } from "@/components/ChatInput";
@@ -171,8 +171,12 @@ export default function Home() {
 
       <main className="flex-1 flex flex-col h-screen relative">
         <div className="p-4 flex items-center gap-4">
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 glass-panel rounded-lg hover:bg-white/10 transition">
-            <Menu className="w-5 h-5" />
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)} 
+            className="p-2 glass-panel rounded-lg hover:bg-white/10 transition text-white/70 hover:text-white flex items-center justify-center"
+            title={sidebarOpen ? "Скрыть панель" : "Показать панель"}
+          >
+            {sidebarOpen ? <PanelLeftClose className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
           <div className="flex items-center gap-2">
             <img src="/logo.png" alt="Logo" className="h-7 w-auto object-contain drop-shadow-[0_0_10px_rgba(168,139,255,0.5)]" />
