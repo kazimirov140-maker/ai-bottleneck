@@ -5,8 +5,8 @@ export function Sidebar({
   lang, setLang, sidebarOpen, sessions, activeId, setActiveId, setInput
 }: any) {
   return (
-    <aside className={`transition-all duration-300 glass-panel border-l-0 border-y-0 rounded-none flex flex-col z-20 ${sidebarOpen ? 'w-72' : 'w-0 -translate-x-full'}`}>
-      <div className="p-4 flex-1 flex flex-col overflow-hidden min-w-72">
+    <aside className={`transition-all duration-300 glass-panel border-l-0 border-y-0 rounded-none flex flex-col z-20 overflow-hidden ${sidebarOpen ? 'w-72 border-r border-white/10 opacity-100' : 'w-0 border-r-0 opacity-0'}`}>
+      <div className="p-4 flex-1 flex flex-col overflow-hidden w-72">
         <button 
           onClick={() => { setActiveId(null); setInput(""); }}
           className="w-full py-3 rounded-xl bg-gradient-to-r from-primary/80 to-purple-500/80 hover:from-primary hover:to-purple-500 font-bold mb-6 shadow-[0_0_15px_rgba(168,139,255,0.3)] transition"
