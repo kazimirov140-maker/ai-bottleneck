@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { T, WORKER_MODELS, JUDGE_MODELS, Lang } from "@/lib/i18n";
-import { Menu, PanelLeftClose, Expand } from "lucide-react";
+import { Menu, PanelLeftClose, Expand, Volume2, Square } from "lucide-react";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatInput } from "@/components/ChatInput";
@@ -29,6 +29,8 @@ export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<"idle" | "workers" | "analyst">("idle");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [models, setModels] = useState({
     win1: WORKER_MODELS[0],
@@ -54,7 +56,18 @@ export default function Home() {
 
   const activeSession = activeId ? sessions[activeId] : null;
 
-  const playAudio = async (text: string, currentLang: string) => {
+  const playAudio = async (text: string, currentLang: string, msgId: string) => {
+    if (playingAudioId === msgId && audioRef.current) {
+      audioRef.current.pause();
+      setPlayingAudioId(null);
+      return;
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+
+    setPlayingAudioId(msgId);
     try {
       const res = await fetch("/api/tts", {
         method: "POST",
@@ -64,10 +77,15 @@ export default function Home() {
       const data = await res.json();
       if (data.audioContent) {
         const audio = new Audio("data:audio/mp3;base64," + data.audioContent);
+        audioRef.current = audio;
+        audio.onended = () => setPlayingAudioId(null);
         audio.play();
+      } else {
+        setPlayingAudioId(null);
       }
     } catch (e) {
       console.error("Audio play failed", e);
+      setPlayingAudioId(null);
     }
   };
 
@@ -138,7 +156,8 @@ export default function Home() {
       setSessions(prev => ({ ...prev, [currentSession!.id]: currentSession! }));
       
       // Автоматическая озвучка ответа аналитика
-      playAudio(aData.ansAnalyst, lang);
+      const newMsgId = `analyst-${currentSession.analyst.filter(m => m.role !== 'user').length - 1}`;
+      playAudio(aData.ansAnalyst, lang, newMsgId);
 
     } catch (err) {
       console.error(err);
@@ -244,11 +263,22 @@ export default function Home() {
 
                     <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm text-foreground/90">
                       {history.length === 0 && <div className="text-muted-foreground italic">{T[lang].waiting}</div>}
-                      {history.filter(m => m.role !== 'user').map((m, i) => (
-                        <div key={i} className="p-3 rounded-lg bg-muted mr-8 border border-border">
-                          {m.content}
-                        </div>
-                      ))}
+                      {history.filter(m => m.role !== 'user').map((m, i) => {
+                        const msgId = `${wKey}-${i}`;
+                        const isPlaying = playingAudioId === msgId;
+                        return (
+                          <div key={i} className="p-3 rounded-lg bg-muted mr-10 border border-border group relative">
+                            {m.content}
+                            <button 
+                              onClick={() => playAudio(m.content, lang, msgId)}
+                              className={`absolute -right-10 top-2 p-1.5 rounded-lg transition-all ${isPlaying ? 'text-primary opacity-100 bg-primary/10' : 'text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 hover:bg-muted'}`}
+                              title={isPlaying ? "Остановить" : "Прослушать"}
+                            >
+                              {isPlaying ? <Square className="w-4 h-4 fill-current" /> : <Volume2 className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        );
+                      })}
                       {loadingPhase === "workers" && <div className="text-primary animate-pulse text-sm">⏳ Генерация...</div>}
                       <div ref={num === 1 ? win1Ref : num === 2 ? win2Ref : win3Ref} />
                     </div>
@@ -290,11 +320,22 @@ export default function Home() {
 
               <div className="min-h-[200px] max-h-[600px] overflow-y-auto p-4 bg-muted/50 rounded-xl border border-primary/10 text-foreground relative z-10">
                 {(!activeSession || activeSession.analyst.length === 0) && <div className="text-muted-foreground italic">{T[lang].judge_waiting}</div>}
-                {activeSession && activeSession.analyst.filter(m => m.role !== 'user').map((m, i) => (
-                   <div key={i} className="p-4 mb-4 rounded-xl bg-background border border-primary/20 mr-12 whitespace-pre-wrap leading-relaxed shadow-sm">
-                     {m.content}
-                   </div>
-                ))}
+                {activeSession && activeSession.analyst.filter(m => m.role !== 'user').map((m, i) => {
+                   const msgId = `analyst-${i}`;
+                   const isPlaying = playingAudioId === msgId;
+                   return (
+                     <div key={i} className="p-4 mb-4 rounded-xl bg-background border border-primary/20 mr-12 whitespace-pre-wrap leading-relaxed shadow-sm group relative">
+                       {m.content}
+                       <button 
+                         onClick={() => playAudio(m.content, lang, msgId)}
+                         className={`absolute -right-12 top-2 p-2 rounded-xl transition-all shadow-sm ${isPlaying ? 'text-primary opacity-100 bg-primary/10' : 'text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 hover:bg-background border border-primary/20'}`}
+                         title={isPlaying ? "Остановить" : "Прослушать"}
+                       >
+                         {isPlaying ? <Square className="w-5 h-5 fill-current" /> : <Volume2 className="w-5 h-5" />}
+                       </button>
+                     </div>
+                   );
+                })}
                 {loadingPhase === "analyst" && <div className="text-primary animate-pulse">🧠 Анализирую ответы и синтезирую финальный результат...</div>}
                 <div ref={messagesEndRef} />
               </div>
