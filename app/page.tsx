@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { T, WORKER_MODELS, JUDGE_MODELS, Lang } from "@/lib/i18n";
-import { Menu, PanelLeftClose, Expand, Volume2, Square } from "lucide-react";
+import { T, WIN1_MODELS, WIN2_MODELS, WIN3_MODELS, JUDGE_MODELS, Lang } from "@/lib/i18n";
+import { Menu, PanelLeftClose, Expand, Volume2, Square, X } from "lucide-react";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatInput } from "@/components/ChatInput";
@@ -31,11 +31,12 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [expandedView, setExpandedView] = useState<{title: string, messages: Message[], wKey: string} | null>(null);
 
   const [models, setModels] = useState({
-    win1: WORKER_MODELS[0],
-    win2: WORKER_MODELS[1],
-    win3: WORKER_MODELS[2],
+    win1: WIN1_MODELS[0],
+    win2: WIN2_MODELS[0],
+    win3: WIN3_MODELS[0],
     analyst: JUDGE_MODELS[0]
   });
 
@@ -243,6 +244,7 @@ export default function Home() {
               {[1, 2, 3].map((num) => {
                 const wKey = `win${num}` as keyof typeof models;
                 const history = activeSession ? activeSession[wKey as keyof ChatSession] as Message[] : [];
+                const winModelsArray = num === 1 ? WIN1_MODELS : num === 2 ? WIN2_MODELS : WIN3_MODELS;
                 return (
                   <div key={num} className="glass-panel p-5 flex flex-col h-[500px]">
                     <div className="flex justify-between items-center mb-4">
@@ -250,15 +252,20 @@ export default function Home() {
                         <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                         {T[lang].window} {num}
                       </h3>
-                      <button className="p-1.5 hover:bg-muted rounded-md transition text-muted-foreground"><Expand className="w-4 h-4" /></button>
+                      <button 
+                        onClick={() => setExpandedView({ title: T[lang].window + " " + num, messages: history, wKey })}
+                        className="p-1.5 hover:bg-muted rounded-md transition text-muted-foreground"
+                      >
+                        <Expand className="w-4 h-4" />
+                      </button>
                     </div>
                     
                     <select 
                       value={models[wKey].id}
-                      onChange={(e) => setModels(m => ({ ...m, [wKey]: WORKER_MODELS.find(x => x.id === e.target.value)! }))}
+                      onChange={(e) => setModels(m => ({ ...m, [wKey]: winModelsArray.find(x => x.id === e.target.value)! }))}
                       className="w-full bg-background border border-border rounded-lg p-2 text-sm text-foreground mb-4 focus:outline-none focus:border-primary"
                     >
-                      {WORKER_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                      {winModelsArray.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                     </select>
 
                     <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm text-foreground/90">
@@ -267,11 +274,11 @@ export default function Home() {
                         const msgId = `${wKey}-${i}`;
                         const isPlaying = playingAudioId === msgId;
                         return (
-                          <div key={i} className="p-3 rounded-lg bg-muted mr-10 border border-border group relative">
+                          <div key={i} className="p-3 pr-10 rounded-lg bg-muted mr-2 border border-border relative">
                             {m.content}
                             <button 
                               onClick={() => playAudio(m.content, lang, msgId)}
-                              className={`absolute -right-10 top-2 p-1.5 rounded-lg transition-all ${isPlaying ? 'text-primary opacity-100 bg-primary/10' : 'text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 hover:bg-muted'}`}
+                              className={`absolute right-2 top-2 p-1.5 rounded-lg transition-all ${isPlaying ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-background'}`}
                               title={isPlaying ? "Остановить" : "Прослушать"}
                             >
                               {isPlaying ? <Square className="w-4 h-4 fill-current" /> : <Volume2 className="w-4 h-4" />}
@@ -295,7 +302,12 @@ export default function Home() {
                   <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(168,139,255,0.8)] animate-pulse" />
                   {T[lang].finalTitle}
                 </h3>
-                <button className="p-1.5 hover:bg-muted rounded-md transition text-muted-foreground"><Expand className="w-4 h-4" /></button>
+                <button 
+                  onClick={() => setExpandedView({ title: T[lang].finalTitle, messages: activeSession ? activeSession.analyst : [], wKey: 'analyst' })}
+                  className="p-1.5 hover:bg-muted rounded-md transition text-muted-foreground"
+                >
+                  <Expand className="w-4 h-4" />
+                </button>
               </div>
 
               <select 
@@ -324,11 +336,11 @@ export default function Home() {
                    const msgId = `analyst-${i}`;
                    const isPlaying = playingAudioId === msgId;
                    return (
-                     <div key={i} className="p-4 mb-4 rounded-xl bg-background border border-primary/20 mr-12 whitespace-pre-wrap leading-relaxed shadow-sm group relative">
+                     <div key={i} className="p-4 pr-12 mb-4 rounded-xl bg-background border border-primary/20 mr-2 whitespace-pre-wrap leading-relaxed shadow-sm relative">
                        {m.content}
                        <button 
                          onClick={() => playAudio(m.content, lang, msgId)}
-                         className={`absolute -right-12 top-2 p-2 rounded-xl transition-all shadow-sm ${isPlaying ? 'text-primary opacity-100 bg-primary/10' : 'text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 hover:bg-background border border-primary/20'}`}
+                         className={`absolute right-3 top-3 p-2 rounded-xl transition-all shadow-sm ${isPlaying ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-primary/10'}`}
                          title={isPlaying ? "Остановить" : "Прослушать"}
                        >
                          {isPlaying ? <Square className="w-5 h-5 fill-current" /> : <Volume2 className="w-5 h-5" />}
@@ -351,6 +363,37 @@ export default function Home() {
         />
 
       </main>
+
+      {expandedView && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm transition-all duration-300">
+          <div className="glass-panel p-6 w-full max-w-5xl h-[85vh] flex flex-col relative border border-primary/30 shadow-[0_0_40px_rgba(168,139,255,0.15)] animate-in zoom-in-95">
+            <button onClick={() => setExpandedView(null)} className="absolute top-4 right-4 p-2 rounded-lg hover:bg-muted text-muted-foreground transition"><X className="w-6 h-6"/></button>
+            <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-primary shadow-[0_0_10px_rgba(168,139,255,0.8)] animate-pulse" />
+              {expandedView.title}
+            </h2>
+            <div className="flex-1 overflow-y-auto pr-4 space-y-6 text-lg text-foreground/90">
+               {expandedView.messages.length === 0 && <div className="text-muted-foreground italic">{T[lang].waiting}</div>}
+               {expandedView.messages.filter(m => m.role !== 'user').map((m, i) => {
+                 const msgId = `expanded-${expandedView.wKey}-${i}`;
+                 const isPlaying = playingAudioId === msgId;
+                 return (
+                   <div key={i} className="p-6 pr-16 rounded-xl bg-background border border-border shadow-sm relative whitespace-pre-wrap leading-relaxed">
+                     {m.content}
+                     <button 
+                        onClick={() => playAudio(m.content, lang, msgId)}
+                        className={`absolute right-4 top-4 p-2.5 rounded-xl transition-all shadow-sm ${isPlaying ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-border'}`}
+                        title={isPlaying ? "Остановить" : "Прослушать"}
+                     >
+                        {isPlaying ? <Square className="w-6 h-6 fill-current" /> : <Volume2 className="w-6 h-6" />}
+                     </button>
+                   </div>
+                 );
+               })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
