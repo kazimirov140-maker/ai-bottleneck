@@ -63,17 +63,33 @@ export const T = {
   }
 };
 
-export const WORKER_MODELS = [
-  { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B Instant (Speed)", provider: "groq" },
-  { id: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout (Creative)", provider: "groq" },
-  { id: "qwen/qwen3-32b", label: "Qwen 3 32B (Balanced)", provider: "groq" },
-  { id: "google/gemma-4-31b-it:free", label: "Gemma 4 31B (Balanced)", provider: "openrouter" },
-  { id: "openai/gpt-oss-20b:free", label: "GPT-OSS 20B (Fast)", provider: "openrouter" }
+export const WIN1_MODELS = [
+  { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Speed)", provider: "groq" },
+  { id: "gemma2-9b-it", label: "Gemma 2 9B (Groq)", provider: "groq" },
+  { id: "openai/gpt-4o-mini:free", label: "GPT-4o Mini (OpenRouter)", provider: "openrouter" },
+  { id: "google/gemini-flash-1.5-exp", label: "Gemini 1.5 Flash (OpenRouter)", provider: "openrouter" },
+  { id: "mistralai/mistral-7b-instruct:free", label: "Mistral 7B (OpenRouter)", provider: "openrouter" }
+];
+
+export const WIN2_MODELS = [
+  { id: "llama3-70b-8192", label: "Llama 3 70B (Creative)", provider: "groq" },
+  { id: "mixtral-8x7b-32768", label: "Mixtral 8x7B (Groq)", provider: "groq" },
+  { id: "anthropic/claude-3-haiku:free", label: "Claude 3 Haiku (OpenRouter)", provider: "openrouter" },
+  { id: "meta-llama/llama-3.1-70b-instruct:free", label: "Llama 3.1 70B (OpenRouter)", provider: "openrouter" },
+  { id: "microsoft/phi-3-medium-128k-instruct:free", label: "Phi-3 Medium (OpenRouter)", provider: "openrouter" }
+];
+
+export const WIN3_MODELS = [
+  { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (Versatile)", provider: "groq" },
+  { id: "qwen/qwen-2.5-72b-instruct", label: "Qwen 2.5 72B (OpenRouter)", provider: "openrouter" },
+  { id: "google/gemma-2-27b-it:free", label: "Gemma 2 27B (OpenRouter)", provider: "openrouter" },
+  { id: "cohere/command-r-plus:free", label: "Command R+ (OpenRouter)", provider: "openrouter" },
+  { id: "databricks/dbrx-instruct:free", label: "DBRX Instruct (OpenRouter)", provider: "openrouter" }
 ];
 
 export const JUDGE_MODELS = [
-  { id: "openai/gpt-oss-120b:free", label: "GPT-OSS 120B (Expert)", provider: "openrouter" },
-  { id: "nousresearch/hermes-3-llama-3.1-405b:free", label: "Hermes 3 Llama 405B (Deep)", provider: "openrouter" },
-  { id: "nvidia/nemotron-3-ultra-550b-a55b:free", label: "Nemotron 3 Ultra 550B (Analytic)", provider: "openrouter" },
-  { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (Versatile)", provider: "groq" }
+  { id: "openai/gpt-4o-2024-08-06", label: "GPT-4o (Expert)", provider: "openrouter" },
+  { id: "anthropic/claude-3.5-sonnet:free", label: "Claude 3.5 Sonnet (Deep)", provider: "openrouter" },
+  { id: "nvidia/llama-3.1-nemotron-70b-instruct:free", label: "Nemotron 70B (Analytic)", provider: "openrouter" },
+  { id: "google/gemini-pro-1.5", label: "Gemini 1.5 Pro (OpenRouter)", provider: "openrouter" }
 ];
