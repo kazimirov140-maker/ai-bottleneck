@@ -54,6 +54,23 @@ export default function Home() {
 
   const activeSession = activeId ? sessions[activeId] : null;
 
+  const playAudio = async (text: string, currentLang: string) => {
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, lang: currentLang })
+      });
+      const data = await res.json();
+      if (data.audioContent) {
+        const audio = new Audio("data:audio/mp3;base64," + data.audioContent);
+        audio.play();
+      }
+    } catch (e) {
+      console.error("Audio play failed", e);
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || loadingPhase !== "idle") return;
 
@@ -119,6 +136,9 @@ export default function Home() {
       
       currentSession.analyst.push({ role: "user", content: userMsg }, { role: "assistant", content: aData.ansAnalyst });
       setSessions(prev => ({ ...prev, [currentSession!.id]: currentSession! }));
+      
+      // Автоматическая озвучка ответа аналитика
+      playAudio(aData.ansAnalyst, lang);
 
     } catch (err) {
       console.error(err);
@@ -179,7 +199,7 @@ export default function Home() {
         <div className="p-4 flex items-center gap-4">
           <button 
             onClick={() => setSidebarOpen(!sidebarOpen)} 
-            className="p-2 glass-panel rounded-lg hover:bg-white/10 transition text-white/70 hover:text-white flex items-center justify-center"
+            className="p-2 glass-panel rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center justify-center"
             title={sidebarOpen ? "Скрыть панель" : "Показать панель"}
           >
             {sidebarOpen ? <PanelLeftClose className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -196,7 +216,7 @@ export default function Home() {
             {activeSession && activeSession.messages.length > 0 && (
               <div className="glass-panel p-4 rounded-xl border border-primary/20">
                 <div className="text-xs uppercase tracking-widest text-primary mb-2">{T[lang].prompt}</div>
-                <div className="text-white/90">{activeSession.messages[activeSession.messages.length-1].content}</div>
+                <div className="text-foreground">{activeSession.messages[activeSession.messages.length-1].content}</div>
               </div>
             )}
 
@@ -207,25 +227,25 @@ export default function Home() {
                 return (
                   <div key={num} className="glass-panel p-5 flex flex-col h-[500px]">
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-bold text-white/80 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                      <h3 className="font-bold text-foreground flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                         {T[lang].window} {num}
                       </h3>
-                      <button className="p-1.5 hover:bg-white/10 rounded-md transition text-white/50"><Expand className="w-4 h-4" /></button>
+                      <button className="p-1.5 hover:bg-muted rounded-md transition text-muted-foreground"><Expand className="w-4 h-4" /></button>
                     </div>
                     
                     <select 
                       value={models[wKey].id}
                       onChange={(e) => setModels(m => ({ ...m, [wKey]: WORKER_MODELS.find(x => x.id === e.target.value)! }))}
-                      className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white/80 mb-4 focus:outline-none focus:border-primary/50"
+                      className="w-full bg-background border border-border rounded-lg p-2 text-sm text-foreground mb-4 focus:outline-none focus:border-primary"
                     >
                       {WORKER_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                     </select>
 
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm text-white/80">
-                      {history.length === 0 && <div className="text-white/30 italic">{T[lang].waiting}</div>}
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm text-foreground/90">
+                      {history.length === 0 && <div className="text-muted-foreground italic">{T[lang].waiting}</div>}
                       {history.filter(m => m.role !== 'user').map((m, i) => (
-                        <div key={i} className="p-3 rounded-lg bg-white/5 mr-8">
+                        <div key={i} className="p-3 rounded-lg bg-muted mr-8 border border-border">
                           {m.content}
                         </div>
                       ))}
@@ -237,21 +257,21 @@ export default function Home() {
               })}
             </div>
 
-            <div className="glass-panel p-6 border-[2px] border-teal-400/50 shadow-[0_0_30px_rgba(45,212,191,0.15)] relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-teal-400/5 to-yellow-400/5 pointer-events-none" />
+            <div className="glass-panel p-6 border-[2px] border-primary/50 shadow-[0_0_30px_rgba(168,139,255,0.15)] relative overflow-hidden transition-all">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-purple-500/5 pointer-events-none" />
               
               <div className="flex justify-between items-center mb-4 relative z-10">
-                <h3 className="font-bold text-lg bg-gradient-to-r from-teal-400 to-yellow-400 bg-clip-text text-transparent flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-teal-400 shadow-[0_0_10px_#2dd4bf] animate-pulse" />
+                <h3 className="font-bold text-lg bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(168,139,255,0.8)] animate-pulse" />
                   {T[lang].finalTitle}
                 </h3>
-                <button className="p-1.5 hover:bg-white/10 rounded-md transition text-white/50"><Expand className="w-4 h-4" /></button>
+                <button className="p-1.5 hover:bg-muted rounded-md transition text-muted-foreground"><Expand className="w-4 h-4" /></button>
               </div>
 
               <select 
                 value={models.analyst.id}
                 onChange={(e) => setModels(m => ({ ...m, analyst: JUDGE_MODELS.find(x => x.id === e.target.value)! }))}
-                className="w-full lg:w-1/3 bg-black/40 border border-teal-400/20 rounded-lg p-2 text-sm text-teal-100 mb-4 focus:outline-none focus:border-teal-400/50 relative z-10"
+                className="w-full lg:w-1/3 bg-background border border-primary/30 rounded-lg p-2 text-sm text-primary mb-4 focus:outline-none focus:border-primary relative z-10"
               >
                 {JUDGE_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
@@ -264,18 +284,18 @@ export default function Home() {
                     setSessions(s => ({...s, [activeId!]: {...s[activeId!], analystPrompt: e.target.value}}));
                   }
                 }}
-                className="w-full bg-black/20 border border-teal-400/20 rounded-lg p-3 text-xs text-teal-100/70 mb-4 focus:outline-none focus:border-teal-400/50 min-h-[60px] relative z-10"
+                className="w-full bg-background border border-primary/20 rounded-lg p-3 text-xs text-muted-foreground mb-4 focus:outline-none focus:border-primary min-h-[60px] relative z-10"
                 placeholder="Системный промпт Аналитика..."
               />
 
-              <div className="min-h-[200px] max-h-[600px] overflow-y-auto p-4 bg-black/20 rounded-xl border border-white/5 text-white/90 relative z-10">
-                {(!activeSession || activeSession.analyst.length === 0) && <div className="text-white/30 italic">{T[lang].judge_waiting}</div>}
+              <div className="min-h-[200px] max-h-[600px] overflow-y-auto p-4 bg-muted/50 rounded-xl border border-primary/10 text-foreground relative z-10">
+                {(!activeSession || activeSession.analyst.length === 0) && <div className="text-muted-foreground italic">{T[lang].judge_waiting}</div>}
                 {activeSession && activeSession.analyst.filter(m => m.role !== 'user').map((m, i) => (
-                   <div key={i} className="p-4 mb-4 rounded-xl bg-white/5 mr-12 whitespace-pre-wrap leading-relaxed">
+                   <div key={i} className="p-4 mb-4 rounded-xl bg-background border border-primary/20 mr-12 whitespace-pre-wrap leading-relaxed shadow-sm">
                      {m.content}
                    </div>
                 ))}
-                {loadingPhase === "analyst" && <div className="text-teal-400 animate-pulse">🧠 Анализирую ответы и синтезирую финальный результат...</div>}
+                {loadingPhase === "analyst" && <div className="text-primary animate-pulse">🧠 Анализирую ответы и синтезирую финальный результат...</div>}
                 <div ref={messagesEndRef} />
               </div>
             </div>
