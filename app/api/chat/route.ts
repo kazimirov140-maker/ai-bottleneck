@@ -14,7 +14,7 @@ const getClientAndModel = (modelId: string, provider: string) => {
   return null;
 };
 
-async function callModel(messages: any[], modelConfig: { id: string; provider: string }) {
+async function callModel(messages: any[], modelConfig: { id: string; provider: string }, isFallback = false): Promise<{content: string, failedModelId?: string}> {
   try {
     const { client, id } = getClientAndModel(modelConfig.id, modelConfig.provider)!;
     
@@ -32,10 +32,25 @@ async function callModel(messages: any[], modelConfig: { id: string; provider: s
       max_tokens: 2000,
     });
 
-    return response.choices[0]?.message?.content || "❌ Empty response";
+    return { content: response.choices[0]?.message?.content || "❌ Empty response" };
   } catch (error: any) {
     console.error(`Error with model ${modelConfig.id}:`, error);
-    return `❌ API Error [${modelConfig.id}]: ${error.message}`;
+    
+    if (!isFallback) {
+      // Auto-fallback to a reliable model
+      const fallbackConfig = { id: "openai/gpt-4o-mini:free", provider: "openrouter" };
+      try {
+        const fallbackRes = await callModel(messages, fallbackConfig, true);
+        return { 
+          content: `⚠️ Модель ${modelConfig.id} временно недоступна. Автоматическая замена на резервную модель.\n\n` + fallbackRes.content,
+          failedModelId: modelConfig.id 
+        };
+      } catch (e) {
+        return { content: `❌ API Error [${modelConfig.id}] and Fallback failed.`, failedModelId: modelConfig.id };
+      }
+    }
+    
+    return { content: `❌ API Error [${modelConfig.id}]: ${error.message}` };
   }
 }
 
@@ -48,12 +63,17 @@ export async function POST(req: Request) {
     // For workers: we expect { phase: "workers", messages: { win1: [], win2: [], win3: [] }, models: { win1, win2, win3 } }
     
     if (phase === "workers") {
-      const [ans1, ans2, ans3] = await Promise.all([
+      const [res1, res2, res3] = await Promise.all([
         callModel(messages.win1, models.win1),
         callModel(messages.win2, models.win2),
         callModel(messages.win3, models.win3),
       ]);
-      return NextResponse.json({ ans1, ans2, ans3 });
+      return NextResponse.json({ 
+        ans1: res1.content, 
+        ans2: res2.content, 
+        ans3: res3.content,
+        failedModels: [res1.failedModelId, res2.failedModelId, res3.failedModelId].filter(Boolean)
+      });
     }
 
     if (phase === "analyst") {
@@ -84,8 +104,11 @@ Please provide your analysis based on your system instructions.
         { role: "user", content: synthesisPrompt }
       ];
 
-      const ansAnalyst = await callModel(finalMessages, models.analyst);
-      return NextResponse.json({ ansAnalyst });
+      const resAnalyst = await callModel(finalMessages, models.analyst);
+      return NextResponse.json({ 
+        ansAnalyst: resAnalyst.content,
+        failedModels: resAnalyst.failedModelId ? [resAnalyst.failedModelId] : []
+      });
     }
 
     return NextResponse.json({ error: "Invalid phase" }, { status: 400 });

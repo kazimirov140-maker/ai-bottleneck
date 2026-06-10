@@ -48,6 +48,7 @@ export default function Home() {
   const win3Ref = useRef<HTMLDivElement>(null);
 
   const [isLoaded, setIsLoaded] = useState(false);
+  const [failedModels, setFailedModels] = useState<string[]>([]);
 
   useEffect(() => {
     try {
@@ -62,6 +63,9 @@ export default function Home() {
 
       const savedLang = localStorage.getItem("bottleneck_lang");
       if (savedLang) setLang(savedLang as Lang);
+
+      const savedFailedModels = localStorage.getItem("bottleneck_failedModels");
+      if (savedFailedModels) setFailedModels(JSON.parse(savedFailedModels));
     } catch(e) {
       console.error("Failed to load state from localStorage", e);
     }
@@ -74,7 +78,19 @@ export default function Home() {
     if (activeId) localStorage.setItem("bottleneck_activeId", activeId);
     localStorage.setItem("bottleneck_welcomeSeen", welcomeSeen.toString());
     localStorage.setItem("bottleneck_lang", lang);
-  }, [sessions, activeId, welcomeSeen, lang, isLoaded]);
+    localStorage.setItem("bottleneck_failedModels", JSON.stringify(failedModels));
+  }, [sessions, activeId, welcomeSeen, lang, failedModels, isLoaded]);
+
+  useEffect(() => {
+    setModels(prev => {
+      let next = { ...prev };
+      if (failedModels.includes(next.win1.id)) next.win1 = WIN1_MODELS.find(m => !failedModels.includes(m.id)) || WIN1_MODELS[0];
+      if (failedModels.includes(next.win2.id)) next.win2 = WIN2_MODELS.find(m => !failedModels.includes(m.id)) || WIN2_MODELS[0];
+      if (failedModels.includes(next.win3.id)) next.win3 = WIN3_MODELS.find(m => !failedModels.includes(m.id)) || WIN3_MODELS[0];
+      if (failedModels.includes(next.analyst.id)) next.analyst = JUDGE_MODELS.find(m => !failedModels.includes(m.id)) || JUDGE_MODELS[0];
+      return next;
+    });
+  }, [failedModels]);
 
   useEffect(() => {
     if (loadingPhase === "idle") {
@@ -164,6 +180,10 @@ export default function Home() {
       });
       const wData = await workersRes.json();
       
+      if (wData.failedModels && wData.failedModels.length > 0) {
+        setFailedModels(prev => Array.from(new Set([...prev, ...wData.failedModels])));
+      }
+      
       currentSession.win1.push({ role: "user", content: userMsg }, { role: "assistant", content: wData.ans1 });
       currentSession.win2.push({ role: "user", content: userMsg }, { role: "assistant", content: wData.ans2 });
       currentSession.win3.push({ role: "user", content: userMsg }, { role: "assistant", content: wData.ans3 });
@@ -184,12 +204,16 @@ export default function Home() {
       });
       const aData = await analystRes.json();
       
+      if (aData.failedModels && aData.failedModels.length > 0) {
+        setFailedModels(prev => Array.from(new Set([...prev, ...aData.failedModels])));
+      }
+      
       currentSession.analyst.push({ role: "user", content: userMsg }, { role: "assistant", content: aData.ansAnalyst });
       setSessions(prev => ({ ...prev, [currentSession!.id]: currentSession! }));
       
-      // Автоматическая озвучка ответа аналитика
-      const newMsgId = `analyst-${currentSession.analyst.filter(m => m.role !== 'user').length - 1}`;
-      playAudio(aData.ansAnalyst, lang, newMsgId);
+      // Автоматическая озвучка отключена по просьбе пользователя
+      // const newMsgId = `analyst-${currentSession.analyst.filter(m => m.role !== 'user').length - 1}`;
+      // playAudio(aData.ansAnalyst, lang, newMsgId);
 
     } catch (err) {
       console.error(err);
@@ -278,7 +302,7 @@ export default function Home() {
               {[1, 2, 3].map((num) => {
                 const wKey = `win${num}` as keyof typeof models;
                 const history = activeSession ? activeSession[wKey as keyof ChatSession] as Message[] : [];
-                const winModelsArray = num === 1 ? WIN1_MODELS : num === 2 ? WIN2_MODELS : WIN3_MODELS;
+                const winModelsArray = (num === 1 ? WIN1_MODELS : num === 2 ? WIN2_MODELS : WIN3_MODELS).filter(m => !failedModels.includes(m.id));
                 return (
                   <div key={num} className="glass-panel p-5 flex flex-col h-[500px]">
                     <div className="flex justify-between items-center mb-4">
@@ -351,7 +375,7 @@ export default function Home() {
                 onChange={(e) => setModels(m => ({ ...m, analyst: JUDGE_MODELS.find(x => x.id === e.target.value)! }))}
                 className="w-full lg:w-1/3 bg-background border border-primary/30 rounded-lg p-2 text-sm text-primary mb-4 focus:outline-none focus:border-primary relative z-10"
               >
-                {JUDGE_MODELS.map(m => <option key={m.id} value={m.id} className="bg-slate-900 text-white">{m.label}</option>)}
+                {JUDGE_MODELS.filter(m => !failedModels.includes(m.id)).map(m => <option key={m.id} value={m.id} className="bg-slate-900 text-white">{m.label}</option>)}
               </select>
 
               <textarea 
