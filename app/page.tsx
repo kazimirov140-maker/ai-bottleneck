@@ -264,7 +264,7 @@ export default function Home() {
                       onChange={(e) => setModels(m => ({ ...m, [wKey]: winModelsArray.find(x => x.id === e.target.value)! }))}
                       className="w-full bg-background border border-border rounded-lg p-2 text-sm text-foreground mb-4 focus:outline-none focus:border-primary"
                     >
-                      {winModelsArray.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                      {winModelsArray.map(m => <option key={m.id} value={m.id} className="bg-slate-900 text-white">{m.label}</option>)}
                     </select>
 
                     <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm text-foreground/90">
@@ -314,7 +314,7 @@ export default function Home() {
                 onChange={(e) => setModels(m => ({ ...m, analyst: JUDGE_MODELS.find(x => x.id === e.target.value)! }))}
                 className="w-full lg:w-1/3 bg-background border border-primary/30 rounded-lg p-2 text-sm text-primary mb-4 focus:outline-none focus:border-primary relative z-10"
               >
-                {JUDGE_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                {JUDGE_MODELS.map(m => <option key={m.id} value={m.id} className="bg-slate-900 text-white">{m.label}</option>)}
               </select>
 
               <textarea 
