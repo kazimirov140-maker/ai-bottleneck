@@ -4,8 +4,7 @@ export function WelcomeModal({ lang, setLang, setWelcomeSeen }: { lang: Lang, se
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md overflow-y-auto p-4 transition-colors duration-500">
       <div className="glass-panel p-4 max-w-[95%] lg:max-w-6xl w-full text-center flex flex-col items-center my-auto">
-        <img src="/logo.png" alt="Logo" className="h-12 w-auto mb-2 object-contain drop-shadow-[0_0_20px_rgba(168,139,255,0.8)]" />
-        <h1 className="text-2xl font-bold neon-text mb-4">Bottleneck</h1>
+        <img src="/logo.png" alt="Logo" className="h-20 lg:h-24 w-auto mb-6 object-contain drop-shadow-[0_0_20px_rgba(168,139,255,0.8)]" />
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-2 w-full text-left">
           {/* Russian */}

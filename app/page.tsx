@@ -224,9 +224,8 @@ export default function Home() {
           >
             {sidebarOpen ? <PanelLeftClose className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Logo" className="h-7 w-auto object-contain drop-shadow-[0_0_10px_rgba(168,139,255,0.5)]" />
-            <h2 className="text-xl font-bold neon-text">Bottleneck</h2>
+          <div className="flex items-center">
+            <img src="/logo.png" alt="Logo" className="h-14 md:h-16 w-auto object-contain drop-shadow-[0_0_15px_rgba(168,139,255,0.6)]" />
           </div>
         </div>
 
