@@ -47,6 +47,35 @@ export default function Home() {
   const win2Ref = useRef<HTMLDivElement>(null);
   const win3Ref = useRef<HTMLDivElement>(null);
 
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const savedSessions = localStorage.getItem("bottleneck_sessions");
+      if (savedSessions) setSessions(JSON.parse(savedSessions));
+      
+      const savedActiveId = localStorage.getItem("bottleneck_activeId");
+      if (savedActiveId) setActiveId(savedActiveId);
+
+      const savedWelcome = localStorage.getItem("bottleneck_welcomeSeen");
+      if (savedWelcome) setWelcomeSeen(savedWelcome === "true");
+
+      const savedLang = localStorage.getItem("bottleneck_lang");
+      if (savedLang) setLang(savedLang as Lang);
+    } catch(e) {
+      console.error("Failed to load state from localStorage", e);
+    }
+    setIsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    localStorage.setItem("bottleneck_sessions", JSON.stringify(sessions));
+    if (activeId) localStorage.setItem("bottleneck_activeId", activeId);
+    localStorage.setItem("bottleneck_welcomeSeen", welcomeSeen.toString());
+    localStorage.setItem("bottleneck_lang", lang);
+  }, [sessions, activeId, welcomeSeen, lang, isLoaded]);
+
   useEffect(() => {
     if (loadingPhase === "idle") {
        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -205,6 +234,10 @@ export default function Home() {
     
     recognition.start();
   };
+
+  if (!isLoaded) {
+    return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-10 h-10 text-primary animate-spin" /></div>;
+  }
 
   if (!welcomeSeen) {
     return <WelcomeModal lang={lang} setLang={setLang} setWelcomeSeen={setWelcomeSeen} />;
