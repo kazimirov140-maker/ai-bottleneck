@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { T, WIN1_MODELS, WIN2_MODELS, WIN3_MODELS, JUDGE_MODELS, Lang } from "@/lib/i18n";
-import { Menu, PanelLeftClose, Expand, Volume2, Square, X } from "lucide-react";
+import { Menu, PanelLeftClose, Expand, Volume2, Square, X, Loader2 } from "lucide-react";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatInput } from "@/components/ChatInput";
@@ -30,6 +30,7 @@ export default function Home() {
   const [loadingPhase, setLoadingPhase] = useState<"idle" | "workers" | "analyst">("idle");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [audioLoadingId, setAudioLoadingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [expandedView, setExpandedView] = useState<{title: string, messages: Message[], wKey: string} | null>(null);
 
@@ -66,9 +67,10 @@ export default function Home() {
 
     if (audioRef.current) {
       audioRef.current.pause();
+      setPlayingAudioId(null);
     }
 
-    setPlayingAudioId(msgId);
+    setAudioLoadingId(msgId);
     try {
       const res = await fetch("/api/tts", {
         method: "POST",
@@ -76,17 +78,17 @@ export default function Home() {
         body: JSON.stringify({ text, lang: currentLang })
       });
       const data = await res.json();
+      setAudioLoadingId(null);
       if (data.audioContent) {
         const audio = new Audio("data:audio/mp3;base64," + data.audioContent);
         audioRef.current = audio;
         audio.onended = () => setPlayingAudioId(null);
         audio.play();
-      } else {
-        setPlayingAudioId(null);
+        setPlayingAudioId(msgId);
       }
     } catch (e) {
       console.error("Audio play failed", e);
-      setPlayingAudioId(null);
+      setAudioLoadingId(null);
     }
   };
 
@@ -272,15 +274,17 @@ export default function Home() {
                       {history.filter(m => m.role !== 'user').map((m, i) => {
                         const msgId = `${wKey}-${i}`;
                         const isPlaying = playingAudioId === msgId;
+                        const isLoading = audioLoadingId === msgId;
                         return (
                           <div key={i} className="p-3 pr-10 rounded-lg bg-muted mr-2 border border-border relative">
                             {m.content}
                             <button 
                               onClick={() => playAudio(m.content, lang, msgId)}
-                              className={`absolute right-2 top-2 p-1.5 rounded-lg transition-all ${isPlaying ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-background'}`}
+                              className={`absolute right-2 top-2 p-1.5 rounded-lg transition-all ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-background'}`}
                               title={isPlaying ? "Остановить" : "Прослушать"}
+                              disabled={isLoading}
                             >
-                              {isPlaying ? <Square className="w-4 h-4 fill-current" /> : <Volume2 className="w-4 h-4" />}
+                              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isPlaying ? <Square className="w-4 h-4 fill-current" /> : <Volume2 className="w-4 h-4" />)}
                             </button>
                           </div>
                         );
@@ -334,15 +338,17 @@ export default function Home() {
                 {activeSession && activeSession.analyst.filter(m => m.role !== 'user').map((m, i) => {
                    const msgId = `analyst-${i}`;
                    const isPlaying = playingAudioId === msgId;
+                   const isLoading = audioLoadingId === msgId;
                    return (
                      <div key={i} className="p-4 pr-12 mb-4 rounded-xl bg-background border border-primary/20 mr-2 whitespace-pre-wrap leading-relaxed shadow-sm relative">
                        {m.content}
                        <button 
                          onClick={() => playAudio(m.content, lang, msgId)}
-                         className={`absolute right-3 top-3 p-2 rounded-xl transition-all shadow-sm ${isPlaying ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-primary/10'}`}
+                         className={`absolute right-3 top-3 p-2 rounded-xl transition-all shadow-sm ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-primary/10'}`}
                          title={isPlaying ? "Остановить" : "Прослушать"}
+                         disabled={isLoading}
                        >
-                         {isPlaying ? <Square className="w-5 h-5 fill-current" /> : <Volume2 className="w-5 h-5" />}
+                         {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isPlaying ? <Square className="w-5 h-5 fill-current" /> : <Volume2 className="w-5 h-5" />)}
                        </button>
                      </div>
                    );
@@ -376,15 +382,17 @@ export default function Home() {
                {expandedView.messages.filter(m => m.role !== 'user').map((m, i) => {
                  const msgId = `expanded-${expandedView.wKey}-${i}`;
                  const isPlaying = playingAudioId === msgId;
+                 const isLoading = audioLoadingId === msgId;
                  return (
                    <div key={i} className="p-6 pr-16 rounded-xl bg-background border border-border shadow-sm relative whitespace-pre-wrap leading-relaxed">
                      {m.content}
                      <button 
                         onClick={() => playAudio(m.content, lang, msgId)}
-                        className={`absolute right-4 top-4 p-2.5 rounded-xl transition-all shadow-sm ${isPlaying ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-border'}`}
+                        className={`absolute right-4 top-4 p-2.5 rounded-xl transition-all shadow-sm ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-border'}`}
                         title={isPlaying ? "Остановить" : "Прослушать"}
+                        disabled={isLoading}
                      >
-                        {isPlaying ? <Square className="w-6 h-6 fill-current" /> : <Volume2 className="w-6 h-6" />}
+                        {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (isPlaying ? <Square className="w-6 h-6 fill-current" /> : <Volume2 className="w-6 h-6" />)}
                      </button>
                    </div>
                  );

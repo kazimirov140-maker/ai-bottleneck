@@ -72,7 +72,7 @@ export const WIN1_MODELS = [
 ];
 
 export const WIN2_MODELS = [
-  { id: "llama3-70b-8192", label: "Llama 3 70B (Creative)", provider: "groq" },
+  { id: "llama-3.1-70b-versatile", label: "Llama 3.1 70B (Creative)", provider: "groq" },
   { id: "mixtral-8x7b-32768", label: "Mixtral 8x7B (Groq)", provider: "groq" },
   { id: "anthropic/claude-3-haiku:free", label: "Claude 3 Haiku (OpenRouter)", provider: "openrouter" },
   { id: "meta-llama/llama-3.1-70b-instruct:free", label: "Llama 3.1 70B (OpenRouter)", provider: "openrouter" },
