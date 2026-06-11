@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import OpenAI from "openai";
 
+export const maxDuration = 60;
+
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const openRouter = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
@@ -25,12 +27,15 @@ async function callModel(messages: any[], modelConfig: { id: string; provider: s
     }));
 
     // @ts-ignore
-    const response = await client.chat.completions.create({
-      model: id,
-      messages: formattedMessages,
-      temperature: 0.7,
-      max_tokens: 2000,
-    });
+    const response: any = await Promise.race([
+      client.chat.completions.create({
+        model: id,
+        messages: formattedMessages,
+        temperature: 0.7,
+        max_tokens: 2000,
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout 20s")), 20000))
+    ]);
 
     return { content: response.choices[0]?.message?.content || "❌ Empty response" };
   } catch (error: any) {

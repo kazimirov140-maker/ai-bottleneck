@@ -32,6 +32,7 @@ export default function Home() {
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const [audioLoadingId, setAudioLoadingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const recognitionRef = useRef<any>(null);
   const [expandedView, setExpandedView] = useState<{title: string, messages: Message[], wKey: string} | null>(null);
 
   const [models, setModels] = useState({
@@ -225,6 +226,9 @@ export default function Home() {
 
   const toggleVoice = () => {
     if (isRecording) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
       setIsRecording(false);
       return;
     }
@@ -237,6 +241,7 @@ export default function Home() {
     }
     
     const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
     recognition.lang = lang === "ru" ? "ru-RU" : lang === "es" ? "es-ES" : "en-US";
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -250,11 +255,17 @@ export default function Home() {
         }
       }
       if (finalTranscript) {
-        setInput(prev => prev + " " + finalTranscript);
+        setInput(prev => prev + (prev.endsWith(' ') ? '' : ' ') + finalTranscript.trim() + ' ');
       }
     };
-    recognition.onerror = () => setIsRecording(false);
-    recognition.onend = () => setIsRecording(false);
+    recognition.onerror = () => {
+      setIsRecording(false);
+      recognitionRef.current = null;
+    };
+    recognition.onend = () => {
+      setIsRecording(false);
+      recognitionRef.current = null;
+    };
     
     recognition.start();
   };
