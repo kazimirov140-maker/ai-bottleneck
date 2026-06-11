@@ -49,7 +49,7 @@ async function callModel(messages: any[], modelConfig: { id: string; provider: s
     
     if (!isFallback) {
       // Auto-fallback to a reliable model after all retries fail
-      const fallbackConfig = { id: "openai/gpt-4o-mini:free", provider: "openrouter" };
+      const fallbackConfig = { id: "llama-3.1-8b-instant", provider: "groq" };
       try {
         const fallbackRes = await callModel(messages, fallbackConfig, true, 1);
         return { 
