@@ -16,7 +16,7 @@ const getClientAndModel = (modelId: string, provider: string) => {
   return null;
 };
 
-async function callModel(messages: any[], modelConfig: { id: string; provider: string }, isFallback = false): Promise<{content: string, failedModelId?: string}> {
+async function callModel(messages: any[], modelConfig: { id: string; provider: string }, isFallback = false, attempt = 1): Promise<{content: string, failedModelId?: string}> {
   try {
     const { client, id } = getClientAndModel(modelConfig.id, modelConfig.provider)!;
     
@@ -39,15 +39,21 @@ async function callModel(messages: any[], modelConfig: { id: string; provider: s
 
     return { content: response.choices[0]?.message?.content || "❌ Empty response" };
   } catch (error: any) {
-    console.error(`Error with model ${modelConfig.id}:`, error);
+    console.error(`Attempt ${attempt} error with model ${modelConfig.id}:`, error.message);
+    
+    if (!isFallback && attempt < 3) {
+      console.log(`Retrying ${modelConfig.id} in 1.5 seconds (Attempt ${attempt + 1})...`);
+      await new Promise(r => setTimeout(r, 1500));
+      return callModel(messages, modelConfig, isFallback, attempt + 1);
+    }
     
     if (!isFallback) {
-      // Auto-fallback to a reliable model
+      // Auto-fallback to a reliable model after all retries fail
       const fallbackConfig = { id: "openai/gpt-4o-mini:free", provider: "openrouter" };
       try {
-        const fallbackRes = await callModel(messages, fallbackConfig, true);
+        const fallbackRes = await callModel(messages, fallbackConfig, true, 1);
         return { 
-          content: `⚠️ Модель ${modelConfig.id} временно недоступна. Автоматическая замена на резервную модель.\n\n` + fallbackRes.content,
+          content: `⚠️ Модель ${modelConfig.id} временно недоступна (сбой после 3 попыток). Автоматическая замена.\n\n` + fallbackRes.content,
           failedModelId: modelConfig.id 
         };
       } catch (e) {
