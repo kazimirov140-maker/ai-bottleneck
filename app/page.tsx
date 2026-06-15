@@ -51,6 +51,27 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [failedModels, setFailedModels] = useState<string[]>([]);
 
+  // Parses URLs into clickable links and basic bold markdown into <strong>
+  const parseMessage = (text: string) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s\]\)]+)/g;
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{part}</a>;
+      }
+      
+      const boldParts = part.split(/(\*\*.*?\*\*)/g);
+      return boldParts.map((bp, j) => {
+        if (bp.startsWith('**') && bp.endsWith('**')) {
+          return <strong key={j} className="text-foreground">{bp.slice(2, -2)}</strong>;
+        }
+        return <span key={j}>{bp}</span>;
+      });
+    });
+  };
+
   useEffect(() => {
     try {
       const savedSessions = localStorage.getItem("bottleneck_sessions");
@@ -81,6 +102,24 @@ export default function Home() {
     localStorage.setItem("bottleneck_lang", lang);
     localStorage.setItem("bottleneck_failedModels", JSON.stringify(failedModels));
   }, [sessions, activeId, welcomeSeen, lang, failedModels, isLoaded]);
+
+  useEffect(() => {
+    // Sync default analyst prompt when language changes
+    const isDefault = Object.values(T).some(t => t.defaultAnalystPrompt === analystPrompt);
+    if (isDefault) {
+      setAnalystPrompt(T[lang].defaultAnalystPrompt);
+    }
+    
+    if (activeSession) {
+      const isSessionDefault = Object.values(T).some(t => t.defaultAnalystPrompt === activeSession.analystPrompt);
+      if (isSessionDefault) {
+        setSessions(prev => ({
+          ...prev,
+          [activeSession.id]: { ...activeSession, analystPrompt: T[lang].defaultAnalystPrompt }
+        }));
+      }
+    }
+  }, [lang, activeSession?.id]);
 
   useEffect(() => {
     setModels(prev => {
@@ -299,7 +338,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pb-48 px-6">
+        <div className="flex-1 overflow-y-auto pb-8 px-6">
           <div className="max-w-[1600px] mx-auto space-y-6">
             
             {activeSession && activeSession.messages.length > 0 && (
@@ -344,8 +383,8 @@ export default function Home() {
                         const isPlaying = playingAudioId === msgId;
                         const isLoading = audioLoadingId === msgId;
                         return (
-                          <div key={i} className="p-3 pr-10 rounded-lg bg-muted mr-2 border border-border relative">
-                            {m.content}
+                          <div key={i} className="p-3 pr-10 rounded-lg bg-muted mr-2 border border-border relative whitespace-pre-wrap">
+                            {parseMessage(m.content)}
                             <button 
                               onClick={() => playAudio(m.content, lang, msgId)}
                               className={`absolute right-2 top-2 p-1.5 rounded-lg transition-all ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-background'}`}
@@ -409,7 +448,7 @@ export default function Home() {
                    const isLoading = audioLoadingId === msgId;
                    return (
                      <div key={i} className="p-4 pr-12 mb-4 rounded-xl bg-background border border-primary/20 mr-2 whitespace-pre-wrap leading-relaxed shadow-sm relative">
-                       {m.content}
+                       {parseMessage(m.content)}
                        <button 
                          onClick={() => playAudio(m.content, lang, msgId)}
                          className={`absolute right-3 top-3 p-2 rounded-xl transition-all shadow-sm ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-primary/10'}`}
@@ -429,12 +468,6 @@ export default function Home() {
           </div>
         </div>
 
-        <ChatInput 
-          lang={lang} input={input} setInput={setInput} 
-          isRecording={isRecording} toggleVoice={toggleVoice} 
-          handleSend={handleSend} loadingPhase={loadingPhase} 
-        />
-
       </main>
 
       {expandedView && (
@@ -453,7 +486,7 @@ export default function Home() {
                  const isLoading = audioLoadingId === msgId;
                  return (
                    <div key={i} className="p-6 pr-16 rounded-xl bg-background border border-border shadow-sm relative whitespace-pre-wrap leading-relaxed">
-                     {m.content}
+                     {parseMessage(m.content)}
                      <button 
                         onClick={() => playAudio(m.content, lang, msgId)}
                         className={`absolute right-4 top-4 p-2.5 rounded-xl transition-all shadow-sm ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-border'}`}
