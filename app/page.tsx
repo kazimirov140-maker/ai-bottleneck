@@ -50,7 +50,7 @@ export default function Home() {
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [failedModels, setFailedModels] = useState<string[]>([]);
-
+  const activeSession = activeId ? sessions[activeId] : null;
   // Parses URLs into clickable links and basic bold markdown into <strong>
   const parseMessage = (text: any) => {
     try {
@@ -148,8 +148,6 @@ export default function Home() {
        win3Ref.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [sessions, activeId, loadingPhase]);
-
-  const activeSession = activeId ? sessions[activeId] : null;
 
   const playAudio = async (text: string, currentLang: string, msgId: string) => {
     if (playingAudioId === msgId && audioRef.current) {
