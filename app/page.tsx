@@ -52,24 +52,32 @@ export default function Home() {
   const [failedModels, setFailedModels] = useState<string[]>([]);
 
   // Parses URLs into clickable links and basic bold markdown into <strong>
-  const parseMessage = (text: string) => {
-    if (!text) return null;
-    const urlRegex = /(https?:\/\/[^\s\]\)]+)/g;
-    const parts = text.split(urlRegex);
-    
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{part}</a>;
-      }
+  const parseMessage = (text: any) => {
+    try {
+      if (typeof text !== 'string') return String(text || '');
       
-      const boldParts = part.split(/(\*\*.*?\*\*)/g);
-      return boldParts.map((bp, j) => {
-        if (bp.startsWith('**') && bp.endsWith('**')) {
-          return <strong key={j} className="text-foreground">{bp.slice(2, -2)}</strong>;
+      const urlRegex = /(https?:\/\/[^\s\]\)]+)/g;
+      const parts = text.split(urlRegex);
+      
+      return parts.map((part, i) => {
+        if (part.match(urlRegex)) {
+          return <a key={`link-${i}`} href={part} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{part}</a>;
         }
-        return <span key={j}>{bp}</span>;
+        
+        const boldParts = part.split(/(\*\*.*?\*\*)/g);
+        return <span key={`text-${i}`}>
+          {boldParts.map((bp, j) => {
+            if (bp.startsWith('**') && bp.endsWith('**')) {
+              return <strong key={j} className="text-foreground">{bp.slice(2, -2)}</strong>;
+            }
+            return <span key={j}>{bp}</span>;
+          })}
+        </span>;
       });
-    });
+    } catch (e) {
+      console.error("Parse error:", e);
+      return String(text || '');
+    }
   };
 
   useEffect(() => {
