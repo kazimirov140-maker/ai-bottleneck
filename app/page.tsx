@@ -365,18 +365,25 @@ export default function Home() {
       />
 
       <main className="flex-1 flex flex-col h-screen relative">
-        <div className="p-4 flex items-center gap-4">
-          <button 
-            onClick={() => setSidebarOpen(!sidebarOpen)} 
-            className="p-2 glass-panel rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center justify-center"
-            title={sidebarOpen ? "Скрыть панель" : "Показать панель"}
-          >
-            {sidebarOpen ? <PanelLeftClose className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-          <div className="flex items-center">
-            <img src="/logo.png" alt="Logo" className="h-14 md:h-16 w-auto object-contain drop-shadow-[0_0_15px_rgba(168,139,255,0.6)]" />
+        <header className="p-3 lg:p-4 flex flex-col md:flex-row justify-between items-center bg-background/80 backdrop-blur-md sticky top-0 z-40 border-b border-border shadow-sm gap-4">
+          <div className="flex items-center gap-4 w-full md:w-auto shrink-0 justify-between md:justify-start">
+            <button 
+              onClick={() => setSidebarOpen(!sidebarOpen)} 
+              className="p-2 glass-panel rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center justify-center lg:hidden"
+              title={sidebarOpen ? "Скрыть панель" : "Показать панель"}
+            >
+              {sidebarOpen ? <PanelLeftClose className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+            <div className="flex items-center">
+              <img src="/logo.png" alt="Logo" className="h-10 md:h-12 w-auto object-contain drop-shadow-[0_0_15px_rgba(168,139,255,0.6)]" />
+            </div>
           </div>
-        </div>
+          <ChatInput 
+            lang={lang} input={input} setInput={setInput} 
+            isRecording={isRecording} toggleVoice={toggleVoice} 
+            handleSend={handleSend} loadingPhase={loadingPhase} 
+          />
+        </header>
 
         <div className="flex-1 overflow-y-auto pb-8 px-6">
           <div className="max-w-[1600px] mx-auto space-y-6">
