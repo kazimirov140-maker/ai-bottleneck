@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import OpenAI from "openai";
+import { T, Lang } from "@/lib/i18n";
 
 export const maxDuration = 60;
 
@@ -16,7 +17,7 @@ const getClientAndModel = (modelId: string, provider: string) => {
   return null;
 };
 
-async function callModel(messages: any[], modelConfig: { id: string; provider: string }, isFallback = false, attempt = 1): Promise<{content: string, failedModelId?: string}> {
+async function callModel(messages: any[], modelConfig: { id: string; provider: string }, lang: Lang = "en", isFallback = false, attempt = 1): Promise<{content: string, failedModelId?: string}> {
   try {
     const { client, id } = getClientAndModel(modelConfig.id, modelConfig.provider)!;
     
@@ -34,7 +35,7 @@ async function callModel(messages: any[], modelConfig: { id: string; provider: s
         temperature: 0.7,
         max_tokens: 2000,
       }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout 20s")), 20000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout 50s")), 50000))
     ]);
 
     return { content: response.choices[0]?.message?.content || "❌ Empty response" };
@@ -44,16 +45,17 @@ async function callModel(messages: any[], modelConfig: { id: string; provider: s
     if (!isFallback && attempt < 3) {
       console.log(`Retrying ${modelConfig.id} in 1.5 seconds (Attempt ${attempt + 1})...`);
       await new Promise(r => setTimeout(r, 1500));
-      return callModel(messages, modelConfig, isFallback, attempt + 1);
+      return callModel(messages, modelConfig, lang, isFallback, attempt + 1);
     }
     
     if (!isFallback) {
       // Auto-fallback to a reliable model after all retries fail
       const fallbackConfig = { id: "llama-3.1-8b-instant", provider: "groq" };
       try {
-        const fallbackRes = await callModel(messages, fallbackConfig, true, 1);
+        const fallbackRes = await callModel(messages, fallbackConfig, lang, true, 1);
+        const warning = T[lang].fallbackWarning.replace('{model}', modelConfig.id);
         return { 
-          content: `⚠️ Модель ${modelConfig.id} временно недоступна (сбой после 3 попыток). Автоматическая замена.\n\n` + fallbackRes.content,
+          content: `${warning}\n\n` + fallbackRes.content,
           failedModelId: modelConfig.id 
         };
       } catch (e) {
@@ -68,16 +70,16 @@ async function callModel(messages: any[], modelConfig: { id: string; provider: s
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { phase, messages, models, analystPrompt, workerAnswers } = body;
+    const { phase, messages, models, analystPrompt, workerAnswers, lang = "en" } = body;
 
     // phase: "workers" or "analyst"
     // For workers: we expect { phase: "workers", messages: { win1: [], win2: [], win3: [] }, models: { win1, win2, win3 } }
     
     if (phase === "workers") {
       const [res1, res2, res3] = await Promise.all([
-        callModel(messages.win1, models.win1),
-        callModel(messages.win2, models.win2),
-        callModel(messages.win3, models.win3),
+        callModel(messages.win1, models.win1, lang),
+        callModel(messages.win2, models.win2, lang),
+        callModel(messages.win3, models.win3, lang),
       ]);
       return NextResponse.json({ 
         ans1: res1.content, 
@@ -116,7 +118,7 @@ IMPORTANT: Your ENTIRE output MUST be a valid JSON object. DO NOT wrap in markdo
         { role: "user", content: synthesisPrompt }
       ];
 
-      const resAnalyst = await callModel(finalMessages, models.analyst);
+      const resAnalyst = await callModel(finalMessages, models.analyst, lang);
       return NextResponse.json({ 
         ansAnalyst: resAnalyst.content,
         failedModels: resAnalyst.failedModelId ? [resAnalyst.failedModelId] : []

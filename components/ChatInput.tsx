@@ -26,7 +26,7 @@ export function ChatInput({
           onClick={() => document.getElementById('file-upload')?.click()}
           disabled={isUploadingAttachment || loadingPhase !== "idle"}
           className={`p-2 transition rounded-lg ${isUploadingAttachment ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-muted disabled:opacity-50'}`}
-          title="Прикрепить файл (PDF, TXT)"
+          title={T[lang].attachFile}
         >
           {isUploadingAttachment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
         </button>

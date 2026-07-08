@@ -192,7 +192,7 @@ export default function Home() {
 
     let userMsg = input.trim();
     if (attachmentText) {
-      userMsg += `\n\n--- Прикрепленный файл: ${attachmentName} ---\n${attachmentText}`;
+      userMsg += `\n\n--- ${T[lang].attachedFile}: ${attachmentName} ---\n${attachmentText}`;
     }
     
     setInput("");
@@ -226,6 +226,7 @@ export default function Home() {
         body: JSON.stringify({
           phase: "workers",
           models,
+          lang,
           messages: {
             win1: [...currentSession.win1, { role: "user", content: userMsg }],
             win2: [...currentSession.win2, { role: "user", content: userMsg }],
@@ -252,6 +253,7 @@ export default function Home() {
         body: JSON.stringify({
           phase: "analyst",
           models,
+          lang,
           analystPrompt: currentSession.analystPrompt,
           messages: [...currentSession.analyst, { role: "user", content: userMsg }],
           workerAnswers: [wData.ans1, wData.ans2, wData.ans3]
@@ -281,7 +283,7 @@ export default function Home() {
   const handleDebate = async (divergences: string[]) => {
     if (loadingPhase !== "idle" || !activeSession) return;
     
-    const debateMsg = `🤖 [АВТОМАТИЧЕСКИЙ РЕЖИМ ДЕБАТОВ]\nАналитик выявил расхождения между вашими ответами по следующим пунктам:\n${divergences.map(d => "- " + d).join('\n')}\n\nПожалуйста, аргументируйте свою позицию: почему ваш подход правильный, а другие мнения могут быть ошибочными.`;
+    const debateMsg = T[lang].autoDebateWarning.replace('{divergences}', divergences.map(d => "- " + d).join('\n'));
     
     let currentSession = {
       ...activeSession,
@@ -298,6 +300,7 @@ export default function Home() {
         body: JSON.stringify({
           phase: "workers",
           models,
+          lang,
           messages: {
             win1: [...currentSession.win1, { role: "user", content: debateMsg }],
             win2: [...currentSession.win2, { role: "user", content: debateMsg }],
@@ -320,6 +323,7 @@ export default function Home() {
         body: JSON.stringify({
           phase: "analyst",
           models,
+          lang,
           analystPrompt: currentSession.analystPrompt,
           messages: [...currentSession.analyst, { role: "user", content: debateMsg }],
           workerAnswers: [wData.ans1, wData.ans2, wData.ans3]
@@ -383,12 +387,12 @@ export default function Home() {
       if (data.text) {
         setAttachmentText(data.text);
       } else {
-        alert("Ошибка: " + (data.error || "Не удалось прочитать файл"));
+        alert(T[lang].readError + (data.error || "Error"));
         setAttachmentName(null);
       }
     } catch (err) {
       console.error(err);
-      alert("Ошибка сети при загрузке файла");
+      alert(T[lang].networkError);
       setAttachmentName(null);
     } finally {
       setIsUploadingAttachment(false);
@@ -429,7 +433,7 @@ export default function Home() {
     // @ts-ignore
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Ваш браузер не поддерживает встроенное распознавание голоса.");
+      alert(T[lang].browserVoiceError);
       return;
     }
     
@@ -484,7 +488,7 @@ export default function Home() {
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)} 
               className="p-2 glass-panel rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center justify-center"
-              title={sidebarOpen ? "Скрыть панель" : "Показать панель"}
+              title={sidebarOpen ? T[lang].hidePanel : T[lang].showPanel}
             >
               {sidebarOpen ? <PanelLeftClose className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -551,7 +555,7 @@ export default function Home() {
                             <button 
                               onClick={() => playAudio(m.content, lang, msgId)}
                               className={`absolute right-2 top-2 p-1.5 rounded-lg transition-all ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-background'}`}
-                              title={isPlaying ? "Остановить" : "Прослушать"}
+                              title={isPlaying ? T[lang].stop : T[lang].listen}
                               disabled={isLoading}
                             >
                               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isPlaying ? <Square className="w-4 h-4 fill-current" /> : <Volume2 className="w-4 h-4" />)}
@@ -559,7 +563,7 @@ export default function Home() {
                           </div>
                         );
                       })}
-                      {loadingPhase === "workers" && <div className="text-primary animate-pulse text-sm">⏳ Генерация...</div>}
+                      {loadingPhase === "workers" && <div className="text-primary animate-pulse text-sm">{T[lang].generating}</div>}
                       <div ref={num === 1 ? win1Ref : num === 2 ? win2Ref : win3Ref} />
                     </div>
                   </div>
@@ -577,7 +581,7 @@ export default function Home() {
                     {T[lang].finalTitle}
                   </h3>
                   {activeSession && getHallucinationCount() > 0 && (
-                    <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 font-bold shadow-sm animate-in fade-in zoom-in" title="Количество исправлений, внесенных Аналитиком">
+                    <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 font-bold shadow-sm animate-in fade-in zoom-in" title={T[lang].analystCorrections}>
                       🚨 {T[lang].hallucinations}: {getHallucinationCount()}
                     </div>
                   )}
@@ -664,15 +668,15 @@ export default function Home() {
                        <div className="mt-4 pt-3 border-t border-border flex items-center relative z-10">
                          {i === activeSession.analyst.filter(m => m.role !== 'user').length - 1 && parsed?.divergences && parsed.divergences.length > 0 && (
                            <button onClick={() => handleDebate(parsed.divergences)} disabled={loadingPhase !== "idle"} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-yellow-500/20 text-yellow-600 dark:text-yellow-500 hover:bg-yellow-500/30 rounded-lg transition font-medium shadow-sm mr-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                             ⚔️ Начать Дебаты
+                             ⚔️ {T[lang].startDebate}
                            </button>
                          )}
                          <div className="flex gap-2 ml-auto">
                            <button onClick={() => copyToClipboard(textToPlay)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-muted rounded-md transition border border-transparent hover:border-border">
-                             <Copy className="w-3.5 h-3.5" /> Копировать
+                             <Copy className="w-3.5 h-3.5" /> {T[lang].copy}
                            </button>
                            <button onClick={() => downloadText(textToPlay, activeSession?.title || "analysis")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-muted rounded-md transition border border-transparent hover:border-border">
-                             <Download className="w-3.5 h-3.5" /> Скачать .md
+                             <Download className="w-3.5 h-3.5" /> {T[lang].downloadMd}
                            </button>
                          </div>
                        </div>
@@ -680,7 +684,7 @@ export default function Home() {
                        <button 
                          onClick={() => playAudio(textToPlay, lang, msgId)}
                          className={`absolute right-3 top-3 p-2 rounded-xl transition-all shadow-sm ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-primary/10'}`}
-                         title={isPlaying ? "Остановить" : "Прослушать"}
+                         title={isPlaying ? T[lang].stop : T[lang].listen}
                          disabled={isLoading}
                        >
                          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isPlaying ? <Square className="w-5 h-5 fill-current" /> : <Volume2 className="w-5 h-5" />)}
@@ -688,7 +692,7 @@ export default function Home() {
                      </div>
                    );
                 })}
-                {loadingPhase === "analyst" && <div className="text-primary animate-pulse">🧠 Анализирую ответы и синтезирую финальный результат...</div>}
+                {loadingPhase === "analyst" && <div className="text-primary animate-pulse">{T[lang].analyzing}</div>}
                 <div ref={messagesEndRef} />
               </div>
             </div>
@@ -765,15 +769,15 @@ export default function Home() {
                        <div className="mt-6 pt-4 border-t border-border flex items-center">
                          {i === expandedView.messages.filter(m => m.role !== 'user').length - 1 && parseAnalystResponse(m.content)?.divergences && parseAnalystResponse(m.content)!.divergences.length > 0 && (
                            <button onClick={() => { setExpandedView(null); handleDebate(parseAnalystResponse(m.content)!.divergences); }} disabled={loadingPhase !== "idle"} className="flex items-center gap-2 px-5 py-2.5 text-sm bg-yellow-500/20 text-yellow-600 dark:text-yellow-500 hover:bg-yellow-500/30 rounded-lg transition font-bold shadow-sm mr-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                             ⚔️ Начать Дебаты
+                             ⚔️ {T[lang].startDebate}
                            </button>
                          )}
                          <div className="flex gap-3 ml-auto">
                            <button onClick={() => copyToClipboard(textToPlay)} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition border border-transparent hover:border-border shadow-sm">
-                             <Copy className="w-4 h-4" /> Копировать
+                             <Copy className="w-4 h-4" /> {T[lang].copy}
                            </button>
                            <button onClick={() => downloadText(textToPlay, activeSession?.title || "analysis")} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition border border-transparent hover:border-border shadow-sm">
-                             <Download className="w-4 h-4" /> Скачать .md
+                             <Download className="w-4 h-4" /> {T[lang].downloadMd}
                            </button>
                          </div>
                        </div>
@@ -782,7 +786,7 @@ export default function Home() {
                      <button 
                         onClick={() => playAudio(textToPlay, lang, msgId)}
                         className={`absolute right-4 top-4 p-2.5 rounded-xl transition-all shadow-sm ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-border'}`}
-                        title={isPlaying ? "Остановить" : "Прослушать"}
+                        title={isPlaying ? T[lang].stop : T[lang].listen}
                         disabled={isLoading}
                      >
                         {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (isPlaying ? <Square className="w-6 h-6 fill-current" /> : <Volume2 className="w-6 h-6" />)}
