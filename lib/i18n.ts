@@ -32,7 +32,11 @@ export const T = {
   "divergences": ["точка расхождения 1"],
   "corrections": ["исправление ошибки Модели X: ..."],
   "final_answer": "Ваш финальный синтезированный ответ в формате Markdown"
-}`
+}`,
+    hallucinations: "Галлюцинаций",
+    agreements: "Согласие",
+    divergences: "Расхождения",
+    corrections: "Исправления"
   },
   en: {
     window: "WINDOW",
@@ -65,7 +69,11 @@ YOU MUST RETURN A STRICT JSON FORMAT:
   "divergences": ["point of divergence 1"],
   "corrections": ["correction of Model X error: ..."],
   "final_answer": "Your final synthesized response in Markdown format"
-}`
+}`,
+    hallucinations: "Hallucinations",
+    agreements: "Agreements",
+    divergences: "Divergences",
+    corrections: "Corrections"
   },
   es: {
     window: "VENTANA",
@@ -98,7 +106,11 @@ DEBES DEVOLVER UN FORMATO JSON ESTRICTO:
   "divergences": ["punto de divergencia 1"],
   "corrections": ["corrección del error del Modelo X: ..."],
   "final_answer": "Tu respuesta sintetizada final en formato Markdown"
-}`
+}`,
+    hallucinations: "Alucinaciones",
+    agreements: "Acuerdos",
+    divergences: "Divergencias",
+    corrections: "Correcciones"
   }
 };
 

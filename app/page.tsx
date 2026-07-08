@@ -578,7 +578,7 @@ export default function Home() {
                   </h3>
                   {activeSession && getHallucinationCount() > 0 && (
                     <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 font-bold shadow-sm animate-in fade-in zoom-in" title="Количество исправлений, внесенных Аналитиком">
-                      🚨 Галлюцинаций: {getHallucinationCount()}
+                      🚨 {T[lang].hallucinations}: {getHallucinationCount()}
                     </div>
                   )}
                 </div>
@@ -627,7 +627,7 @@ export default function Home() {
                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                              {parsed.agreements && parsed.agreements.length > 0 && (
                                <div className="bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"/> Согласие:</strong>
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"/> {T[lang].agreements}:</strong>
                                  <ul className="list-disc pl-4 mt-2 space-y-1">
                                    {parsed.agreements.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                                  </ul>
@@ -635,7 +635,7 @@ export default function Home() {
                              )}
                              {parsed.divergences && parsed.divergences.length > 0 && (
                                <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500 rounded-full"/> Расхождения:</strong>
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500 rounded-full"/> {T[lang].divergences}:</strong>
                                  <ul className="list-disc pl-4 mt-2 space-y-1">
                                    {parsed.divergences.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                                  </ul>
@@ -643,7 +643,7 @@ export default function Home() {
                              )}
                              {parsed.corrections && parsed.corrections.length > 0 && (
                                <div className="bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"/> Исправления:</strong>
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"/> {T[lang].corrections}:</strong>
                                  <ul className="list-disc pl-4 mt-2 space-y-1">
                                    {parsed.corrections.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                                  </ul>
@@ -725,7 +725,7 @@ export default function Home() {
                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                              {parsed.agreements && parsed.agreements.length > 0 && (
                                <div className="bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"/> Согласие:</strong>
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"/> {T[lang].agreements}:</strong>
                                  <ul className="list-disc pl-4 mt-2 space-y-1">
                                    {parsed.agreements.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                                  </ul>
@@ -733,7 +733,7 @@ export default function Home() {
                              )}
                              {parsed.divergences && parsed.divergences.length > 0 && (
                                <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500 rounded-full"/> Расхождения:</strong>
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500 rounded-full"/> {T[lang].divergences}:</strong>
                                  <ul className="list-disc pl-4 mt-2 space-y-1">
                                    {parsed.divergences.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                                  </ul>
@@ -741,7 +741,7 @@ export default function Home() {
                              )}
                              {parsed.corrections && parsed.corrections.length > 0 && (
                                <div className="bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"/> Исправления:</strong>
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"/> {T[lang].corrections}:</strong>
                                  <ul className="list-disc pl-4 mt-2 space-y-1">
                                    {parsed.corrections.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                                  </ul>
