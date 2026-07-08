@@ -8,7 +8,7 @@ export const T = {
     welcomeText: "Привет!\n\nЕсли вы часто работаете с искусственным интеллектом, то знаете, что ни одна модель не идеальна: одна сильна в строгой логике, другая — в творчестве, а третья выдаёт ответы молниеносно, но иногда упускает важные детали.\n\nМне пришла в голову идея: почему бы не объединить их сильные стороны? Этот сайт отправляет ваш запрос сразу трём разным ИИ-моделям. После этого четвёртая модель-Аналитик изучает все полученные ответы, убирает лишнее и выдаёт вам идеальную, глубокую выжимку. Вы получаете лучшее от технологий в один клик.",
     start: "Начать работу",
     waiting: "Ожидание запроса...",
-    judge_waiting: "Ожидание ответов для синтеза...",
+    analyst_waiting: "Ожидание ответов для синтеза...",
     new_chat: "Новый чат",
     chat_input: "Задайте вопрос — он улетит сразу в 3 модели...",
     expand: "Расширить",
@@ -19,7 +19,21 @@ export const T = {
     no_history: "Нет сохраненных чатов",
     settings: "Настройки",
     language: "Язык",
-    defaultAnalystPrompt: "Ты — независимый Аналитик. Твоя задача — детально проанализировать ответы трёх ИИ выше, убрать из них галлюцинации, повторы и противоречия, и выдать одну идеальную, структурированную выжимку."
+    defaultAnalystPrompt: `Вы эксперт ИИ-Аналитик. Ваша задача — синтезировать ответы 3 независимых ИИ.
+
+Ваша работа:
+1. ПРОВЕРИТЬ: Ищите фактические ошибки, галлюцинации или противоречия. Помечайте их явно: 'Ошибка Модели 1: [описание]'
+2. СРАВНИТЬ: Определите, в чем модели согласны (высокая уверенность), а в чем расходятся (зона неопределенности).
+3. СИНТЕЗИРОВАТЬ: Соберите лучший ответ, используя:
+   - То, в чем согласны все 3 модели
+   - Уникальные правильные инсайты отдельных моделей
+   - Ваше собственное исправление, если все 3 модели ошибаются
+
+СТРУКТУРА ОТВЕТА:
+**Верификация:** [ошибки или 'Ошибок не найдено']
+**Точки согласия:** [в чем все модели согласны]
+**Финальный Ответ:** [ваш синтезированный ответ]
+**Уверенность:** [Высокая / Средняя / Низкая + причина]`
   },
   en: {
     window: "WINDOW",
@@ -28,7 +42,7 @@ export const T = {
     welcomeText: "Hi!\n\nIf you use AI tools often, you know that no single model is perfect: one excels at strict logic, another shines in creativity, and a third delivers responses lightning-fast, though it might occasionally miss small details.\n\nThat’s why I came up with an idea: why not combine their strengths? This platform sends your prompt to three different AI models simultaneously. Then, a fourth \"Analyst\" model studies all their responses, filters out the noise, and delivers a single, perfected synthesis. You get the best of all worlds in just one click.",
     start: "Get Started",
     waiting: "Waiting for prompt...",
-    judge_waiting: "Waiting for responses to synthesize...",
+    analyst_waiting: "Waiting for responses to synthesize...",
     new_chat: "New Chat",
     chat_input: "Ask a question — it flies to 3 models at once...",
     expand: "Expand",
@@ -39,7 +53,21 @@ export const T = {
     no_history: "No saved chats",
     settings: "Settings",
     language: "Language",
-    defaultAnalystPrompt: "You are an independent Analyst. Your task is to thoroughly analyze the responses of the three AIs above, remove any hallucinations, repetitions, and contradictions, and deliver one perfect, structured synthesis."
+    defaultAnalystPrompt: `You are an expert AI Analyst tasked with synthesizing responses from three independent AI models.
+
+Your job:
+1. VERIFY: Check each answer for factual errors, hallucinations, or contradictions. Flag them explicitly: "Model 1 error: [description]"
+2. COMPARE: Identify where models agree (high confidence) and where they disagree (uncertainty zone)
+3. SYNTHESIZE: Build the best possible answer using:
+   - Points all 3 models agree on (highest confidence)
+   - Unique correct insights from individual models
+   - Your own correction where all 3 models are wrong
+
+OUTPUT STRUCTURE:
+**Verification:** [errors found or "No errors detected"]
+**Consensus points:** [what all models agree on]  
+**Final Answer:** [your synthesized response]
+**Confidence:** [High / Medium / Low + reason]`
   },
   es: {
     window: "VENTANA",
@@ -48,7 +76,7 @@ export const T = {
     welcomeText: "¡Hola!\n\nSi trabajas a menudo con inteligencia artificial, sabrás que ningún modelo es perfecto: uno es excelente con la lógica estricta, otro brilla en la creatividad y un tercero ofrece respuestas a la velocidad del rayo, aunque a veces pueda pasar por alto pequeños detalles.\n\nPor eso se me ocurrió una idea: ¿por qué no unir sus puntos fuertes? Esta web envía tu consulta a tres modelos de IA diferentes al mismo tiempo. Después, un cuarto modelo \"Analista\" estudia todas sus respuestas, elimina lo innecesario y te ofrece una síntesis perfecta. Obtienes lo mejor de la tecnología en un solo clic.",
     start: "Empezar",
     waiting: "Esperando consulta...",
-    judge_waiting: "Esperando respuestas para la síntesis...",
+    analyst_waiting: "Esperando respuestas para la síntesis...",
     new_chat: "Nuevo chat",
     chat_input: "Haz una pregunta: vuela a 3 modelos a la vez...",
     expand: "Expandir",
@@ -59,7 +87,21 @@ export const T = {
     no_history: "No hay chats guardados",
     settings: "Ajustes",
     language: "Idioma",
-    defaultAnalystPrompt: "Eres un Analista independiente. Tu tarea es analizar detalladamente las respuestas de las tres IA anteriores, eliminar alucinaciones, repeticiones y contradicciones, y entregar una síntesis estructurada perfecta."
+    defaultAnalystPrompt: `Eres un Analista de IA experto encargado de sintetizar las respuestas de tres modelos de IA independientes.
+
+Tu trabajo:
+1. VERIFICAR: Comprueba si hay errores en cada respuesta. Señálalos explícitamente: "Error del Modelo 1: [descripción]"
+2. COMPARAR: Identifica en qué coinciden los modelos y en qué discrepan.
+3. SINTETIZAR: Construye la mejor respuesta posible usando:
+   - Puntos en los que los 3 modelos están de acuerdo
+   - Ideas correctas únicas de modelos individuales
+   - Tu propia corrección si los 3 modelos se equivocan
+
+ESTRUCTURA DE SALIDA:
+**Verificación:** [errores o "No se detectaron errores"]
+**Puntos de consenso:** [en qué están de acuerdo todos]
+**Respuesta Final:** [tu respuesta sintetizada]
+**Confianza:** [Alta / Media / Baja + motivo]`
   }
 };
 
@@ -87,7 +129,7 @@ export const WIN3_MODELS = [
   { id: "databricks/dbrx-instruct:free", label: "DBRX Instruct (OpenRouter)", provider: "openrouter" }
 ];
 
-export const JUDGE_MODELS = [
+export const ANALYST_MODELS = [
   { id: "openai/gpt-4o-2024-08-06", label: "GPT-4o (Expert)", provider: "openrouter" },
   { id: "anthropic/claude-3.5-sonnet:free", label: "Claude 3.5 Sonnet (Deep)", provider: "openrouter" },
   { id: "nvidia/llama-3.1-nemotron-70b-instruct:free", label: "Nemotron 70B (Analytic)", provider: "openrouter" },

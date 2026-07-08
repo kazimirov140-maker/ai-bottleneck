@@ -1,45 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { T, WIN1_MODELS, WIN2_MODELS, WIN3_MODELS, JUDGE_MODELS, Lang } from "@/lib/i18n";
-import { Menu, PanelLeftClose, Expand, Volume2, Square, X, Loader2, Play, Mic, MicOff } from "lucide-react";
+import { T, WIN1_MODELS, WIN2_MODELS, WIN3_MODELS, ANALYST_MODELS, Lang } from "@/lib/i18n";
+import { Menu, PanelLeftClose, Expand, Volume2, Square, X, Loader2, Play, Mic, MicOff, Copy, Download } from "lucide-react";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { Sidebar } from "@/components/Sidebar";
-function ChatInput({ 
-  lang, input, setInput, isRecording, toggleVoice, handleSend, loadingPhase 
-}: any) {
-  return (
-    <div className="flex-1 w-full max-w-[800px] relative">
-      <div className="glass-panel p-1.5 pl-4 flex items-center gap-2 border border-border/50 shadow-sm rounded-xl bg-background/60 focus-within:border-primary/50 transition-colors">
-        
-        <textarea 
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-          placeholder={T[lang].chat_input}
-          className="flex-1 bg-transparent border-none outline-none resize-none min-h-[40px] max-h-[120px] py-2.5 text-sm text-foreground placeholder:text-muted-foreground"
-          rows={Math.min(3, (input || "").split('\n').length)}
-        />
-
-        <button 
-          onClick={toggleVoice} 
-          className={`p-2.5 transition rounded-lg ${isRecording ? 'bg-destructive/20 text-destructive animate-pulse' : 'text-muted-foreground hover:text-primary hover:bg-muted'}`}
-        >
-          {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-        </button>
-
-        <button 
-          onClick={handleSend}
-          disabled={loadingPhase !== "idle" || !input.trim()}
-          className="p-2.5 bg-gradient-to-br from-primary to-purple-600 hover:from-primary/90 hover:to-purple-500 text-white rounded-lg transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Play className="w-4 h-4 fill-current ml-0.5" />
-        </button>
-
-      </div>
-    </div>
-  );
-}
+import { ChatInput } from "@/components/ChatInput";
 
 type Message = { role: "user" | "assistant" | "system", content: string };
 
@@ -69,11 +35,15 @@ export default function Home() {
   const recognitionRef = useRef<any>(null);
   const [expandedView, setExpandedView] = useState<{title: string, messages: Message[], wKey: string} | null>(null);
 
+  const [attachmentName, setAttachmentName] = useState<string | null>(null);
+  const [attachmentText, setAttachmentText] = useState<string | null>(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+
   const [models, setModels] = useState({
     win1: WIN1_MODELS[0],
     win2: WIN2_MODELS[0],
     win3: WIN3_MODELS[0],
-    analyst: JUDGE_MODELS[0]
+    analyst: ANALYST_MODELS[0]
   });
 
   const [analystPrompt, setAnalystPrompt] = useState(T[lang].defaultAnalystPrompt);
@@ -169,7 +139,7 @@ export default function Home() {
       if (failedModels.includes(next.win1.id)) next.win1 = WIN1_MODELS.find(m => !failedModels.includes(m.id)) || WIN1_MODELS[0];
       if (failedModels.includes(next.win2.id)) next.win2 = WIN2_MODELS.find(m => !failedModels.includes(m.id)) || WIN2_MODELS[0];
       if (failedModels.includes(next.win3.id)) next.win3 = WIN3_MODELS.find(m => !failedModels.includes(m.id)) || WIN3_MODELS[0];
-      if (failedModels.includes(next.analyst.id)) next.analyst = JUDGE_MODELS.find(m => !failedModels.includes(m.id)) || JUDGE_MODELS[0];
+      if (failedModels.includes(next.analyst.id)) next.analyst = ANALYST_MODELS.find(m => !failedModels.includes(m.id)) || ANALYST_MODELS[0];
       return next;
     });
   }, [failedModels]);
@@ -218,10 +188,15 @@ export default function Home() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || loadingPhase !== "idle") return;
+    if ((!input.trim() && !attachmentText) || loadingPhase !== "idle") return;
 
-    const userMsg = input.trim();
+    let userMsg = input.trim();
+    if (attachmentText) {
+      userMsg += `\n\n--- Прикрепленный файл: ${attachmentName} ---\n${attachmentText}`;
+    }
+    
     setInput("");
+    removeAttachment();
     
     let currentSession = activeSession;
     if (!currentSession) {
@@ -303,6 +278,145 @@ export default function Home() {
     }
   };
 
+  const handleDebate = async (divergences: string[]) => {
+    if (loadingPhase !== "idle" || !activeSession) return;
+    
+    const debateMsg = `🤖 [АВТОМАТИЧЕСКИЙ РЕЖИМ ДЕБАТОВ]\nАналитик выявил расхождения между вашими ответами по следующим пунктам:\n${divergences.map(d => "- " + d).join('\n')}\n\nПожалуйста, аргументируйте свою позицию: почему ваш подход правильный, а другие мнения могут быть ошибочными.`;
+    
+    let currentSession = {
+      ...activeSession,
+      messages: [...activeSession.messages, { role: "user", content: debateMsg }]
+    };
+    
+    setSessions(prev => ({ ...prev, [currentSession.id]: currentSession }));
+    setLoadingPhase("workers");
+
+    try {
+      const workersRes = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phase: "workers",
+          models,
+          messages: {
+            win1: [...currentSession.win1, { role: "user", content: debateMsg }],
+            win2: [...currentSession.win2, { role: "user", content: debateMsg }],
+            win3: [...currentSession.win3, { role: "user", content: debateMsg }]
+          }
+        })
+      });
+      const wData = await workersRes.json();
+      
+      currentSession.win1.push({ role: "user", content: debateMsg }, { role: "assistant", content: wData.ans1 });
+      currentSession.win2.push({ role: "user", content: debateMsg }, { role: "assistant", content: wData.ans2 });
+      currentSession.win3.push({ role: "user", content: debateMsg }, { role: "assistant", content: wData.ans3 });
+      
+      setSessions(prev => ({ ...prev, [currentSession.id]: currentSession }));
+      setLoadingPhase("analyst");
+
+      const analystRes = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phase: "analyst",
+          models,
+          analystPrompt: currentSession.analystPrompt,
+          messages: [...currentSession.analyst, { role: "user", content: debateMsg }],
+          workerAnswers: [wData.ans1, wData.ans2, wData.ans3]
+        })
+      });
+      const aData = await analystRes.json();
+      
+      currentSession.analyst.push({ role: "user", content: debateMsg }, { role: "assistant", content: aData.ansAnalyst });
+      setSessions(prev => ({ ...prev, [currentSession.id]: currentSession }));
+      
+    } catch (err) {
+      console.error(err);
+      alert("Error generating debate response.");
+    } finally {
+      setLoadingPhase("idle");
+    }
+  };
+
+  const parseAnalystResponse = (content: string) => {
+    try {
+      const match = content.match(/\{[\s\S]*\}/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        if (parsed.final_answer) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  };
+
+  const getHallucinationCount = () => {
+    if (!activeSession) return 0;
+    let count = 0;
+    activeSession.analyst.forEach(m => {
+      if (m.role === 'assistant') {
+        const parsed = parseAnalystResponse(m.content);
+        if (parsed && parsed.corrections) {
+          count += parsed.corrections.length;
+        }
+      }
+    });
+    return count;
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setAttachmentName(file.name);
+    setIsUploadingAttachment(true);
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.text) {
+        setAttachmentText(data.text);
+      } else {
+        alert("Ошибка: " + (data.error || "Не удалось прочитать файл"));
+        setAttachmentName(null);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Ошибка сети при загрузке файла");
+      setAttachmentName(null);
+    } finally {
+      setIsUploadingAttachment(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeAttachment = () => {
+    setAttachmentName(null);
+    setAttachmentText(null);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const downloadText = (text: string, title: string) => {
+    const blob = new Blob([text], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/[^a-z0-9]/gi, '_').substring(0, 30)}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const toggleVoice = () => {
     if (isRecording) {
       if (recognitionRef.current) {
@@ -369,7 +483,7 @@ export default function Home() {
           <div className="flex items-center gap-4 w-full md:w-auto shrink-0 justify-between md:justify-start">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)} 
-              className="p-2 glass-panel rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center justify-center lg:hidden"
+              className="p-2 glass-panel rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center justify-center"
               title={sidebarOpen ? "Скрыть панель" : "Показать панель"}
             >
               {sidebarOpen ? <PanelLeftClose className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -382,6 +496,8 @@ export default function Home() {
             lang={lang} input={input} setInput={setInput} 
             isRecording={isRecording} toggleVoice={toggleVoice} 
             handleSend={handleSend} loadingPhase={loadingPhase} 
+            attachmentName={attachmentName} isUploadingAttachment={isUploadingAttachment}
+            handleFileUpload={handleFileUpload} removeAttachment={removeAttachment}
           />
         </header>
 
@@ -455,10 +571,17 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-purple-500/5 pointer-events-none" />
               
               <div className="flex justify-between items-center mb-4 relative z-10">
-                <h3 className="font-bold text-lg bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(168,139,255,0.8)] animate-pulse" />
-                  {T[lang].finalTitle}
-                </h3>
+                <div className="flex items-center gap-4">
+                  <h3 className="font-bold text-lg bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(168,139,255,0.8)] animate-pulse" />
+                    {T[lang].finalTitle}
+                  </h3>
+                  {activeSession && getHallucinationCount() > 0 && (
+                    <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 font-bold shadow-sm animate-in fade-in zoom-in" title="Количество исправлений, внесенных Аналитиком">
+                      🚨 Галлюцинаций: {getHallucinationCount()}
+                    </div>
+                  )}
+                </div>
                 <button 
                   onClick={() => setExpandedView({ title: T[lang].finalTitle, messages: activeSession ? activeSession.analyst : [], wKey: 'analyst' })}
                   className="p-1.5 hover:bg-muted rounded-md transition text-muted-foreground"
@@ -469,10 +592,10 @@ export default function Home() {
 
               <select 
                 value={models.analyst.id}
-                onChange={(e) => setModels(m => ({ ...m, analyst: JUDGE_MODELS.find(x => x.id === e.target.value)! }))}
+                onChange={(e) => setModels(m => ({ ...m, analyst: ANALYST_MODELS.find(x => x.id === e.target.value)! }))}
                 className="w-full lg:w-1/3 bg-background border border-primary/30 rounded-lg p-2 text-sm text-primary mb-4 focus:outline-none focus:border-primary relative z-10"
               >
-                {JUDGE_MODELS.filter(m => !failedModels.includes(m.id)).map(m => <option key={m.id} value={m.id} className="bg-slate-900 text-white">{m.label}</option>)}
+                {ANALYST_MODELS.filter(m => !failedModels.includes(m.id)).map(m => <option key={m.id} value={m.id} className="bg-slate-900 text-white">{m.label}</option>)}
               </select>
 
               <textarea 
@@ -483,21 +606,79 @@ export default function Home() {
                     setSessions(s => ({...s, [activeId!]: {...s[activeId!], analystPrompt: e.target.value}}));
                   }
                 }}
-                className="w-full bg-background border border-primary/20 rounded-lg p-3 text-xs text-muted-foreground mb-4 focus:outline-none focus:border-primary min-h-[60px] relative z-10"
+                rows={12}
+                className="w-full bg-background border border-primary/20 rounded-lg p-3 text-sm text-muted-foreground mb-4 focus:outline-none focus:border-primary min-h-[200px] relative z-10 resize-y"
                 placeholder="Системный промпт Аналитика..."
               />
 
               <div className="min-h-[200px] max-h-[600px] overflow-y-auto p-4 bg-muted/50 rounded-xl border border-primary/10 text-foreground relative z-10">
-                {(!activeSession || activeSession.analyst.length === 0) && <div className="text-muted-foreground italic">{T[lang].judge_waiting}</div>}
+                {(!activeSession || activeSession.analyst.length === 0) && <div className="text-muted-foreground italic">{T[lang].analyst_waiting}</div>}
                 {activeSession && activeSession.analyst.filter(m => m.role !== 'user').map((m, i) => {
                    const msgId = `analyst-${i}`;
                    const isPlaying = playingAudioId === msgId;
                    const isLoading = audioLoadingId === msgId;
+                   const parsed = parseAnalystResponse(m.content);
+                   const textToPlay = parsed ? parsed.final_answer : m.content;
+                   
                    return (
-                     <div key={i} className="p-4 pr-12 mb-4 rounded-xl bg-background border border-primary/20 mr-2 whitespace-pre-wrap leading-relaxed shadow-sm relative">
-                       {parseMessage(m.content)}
+                     <div key={i} className="p-4 pr-12 mb-4 rounded-xl bg-background border border-primary/20 mr-2 shadow-sm relative">
+                       {parsed ? (
+                         <div className="flex flex-col gap-4">
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                             {parsed.agreements && parsed.agreements.length > 0 && (
+                               <div className="bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 p-3 rounded-lg">
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"/> Согласие:</strong>
+                                 <ul className="list-disc pl-4 mt-2 space-y-1">
+                                   {parsed.agreements.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
+                                 </ul>
+                               </div>
+                             )}
+                             {parsed.divergences && parsed.divergences.length > 0 && (
+                               <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 p-3 rounded-lg">
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500 rounded-full"/> Расхождения:</strong>
+                                 <ul className="list-disc pl-4 mt-2 space-y-1">
+                                   {parsed.divergences.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
+                                 </ul>
+                               </div>
+                             )}
+                             {parsed.corrections && parsed.corrections.length > 0 && (
+                               <div className="bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 p-3 rounded-lg">
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"/> Исправления:</strong>
+                                 <ul className="list-disc pl-4 mt-2 space-y-1">
+                                   {parsed.corrections.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
+                                 </ul>
+                               </div>
+                             )}
+                           </div>
+                           <div className="h-px bg-border my-2 w-full"></div>
+                           <div className="whitespace-pre-wrap leading-relaxed text-sm md:text-base">
+                             {parseMessage(parsed.final_answer)}
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="whitespace-pre-wrap leading-relaxed">
+                           {parseMessage(m.content)}
+                         </div>
+                       )}
+                       
+                       <div className="mt-4 pt-3 border-t border-border flex items-center relative z-10">
+                         {i === activeSession.analyst.filter(m => m.role !== 'user').length - 1 && parsed?.divergences && parsed.divergences.length > 0 && (
+                           <button onClick={() => handleDebate(parsed.divergences)} disabled={loadingPhase !== "idle"} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-yellow-500/20 text-yellow-600 dark:text-yellow-500 hover:bg-yellow-500/30 rounded-lg transition font-medium shadow-sm mr-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                             ⚔️ Начать Дебаты
+                           </button>
+                         )}
+                         <div className="flex gap-2 ml-auto">
+                           <button onClick={() => copyToClipboard(textToPlay)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-muted rounded-md transition border border-transparent hover:border-border">
+                             <Copy className="w-3.5 h-3.5" /> Копировать
+                           </button>
+                           <button onClick={() => downloadText(textToPlay, activeSession?.title || "analysis")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-muted rounded-md transition border border-transparent hover:border-border">
+                             <Download className="w-3.5 h-3.5" /> Скачать .md
+                           </button>
+                         </div>
+                       </div>
+                       
                        <button 
-                         onClick={() => playAudio(m.content, lang, msgId)}
+                         onClick={() => playAudio(textToPlay, lang, msgId)}
                          className={`absolute right-3 top-3 p-2 rounded-xl transition-all shadow-sm ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-primary/10'}`}
                          title={isPlaying ? "Остановить" : "Прослушать"}
                          disabled={isLoading}
@@ -531,11 +712,75 @@ export default function Home() {
                  const msgId = `expanded-${expandedView.wKey}-${i}`;
                  const isPlaying = playingAudioId === msgId;
                  const isLoading = audioLoadingId === msgId;
+                 
+                 let contentToRender = parseMessage(m.content);
+                 let textToPlay = m.content;
+                 
+                 if (expandedView.wKey === 'analyst') {
+                   const parsed = parseAnalystResponse(m.content);
+                   if (parsed) {
+                     textToPlay = parsed.final_answer;
+                     contentToRender = (
+                       <div className="flex flex-col gap-4">
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                             {parsed.agreements && parsed.agreements.length > 0 && (
+                               <div className="bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 p-3 rounded-lg">
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"/> Согласие:</strong>
+                                 <ul className="list-disc pl-4 mt-2 space-y-1">
+                                   {parsed.agreements.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
+                                 </ul>
+                               </div>
+                             )}
+                             {parsed.divergences && parsed.divergences.length > 0 && (
+                               <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 p-3 rounded-lg">
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500 rounded-full"/> Расхождения:</strong>
+                                 <ul className="list-disc pl-4 mt-2 space-y-1">
+                                   {parsed.divergences.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
+                                 </ul>
+                               </div>
+                             )}
+                             {parsed.corrections && parsed.corrections.length > 0 && (
+                               <div className="bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 p-3 rounded-lg">
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"/> Исправления:</strong>
+                                 <ul className="list-disc pl-4 mt-2 space-y-1">
+                                   {parsed.corrections.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
+                                 </ul>
+                               </div>
+                             )}
+                           </div>
+                           <div className="h-px bg-border my-2 w-full"></div>
+                           <div className="whitespace-pre-wrap leading-relaxed text-base md:text-lg">
+                             {parseMessage(parsed.final_answer)}
+                           </div>
+                       </div>
+                     ) as any;
+                   }
+                 }
+
                  return (
                    <div key={i} className="p-6 pr-16 rounded-xl bg-background border border-border shadow-sm relative whitespace-pre-wrap leading-relaxed">
-                     {parseMessage(m.content)}
+                     {contentToRender}
+                     
+                     {expandedView.wKey === 'analyst' && (
+                       <div className="mt-6 pt-4 border-t border-border flex items-center">
+                         {i === expandedView.messages.filter(m => m.role !== 'user').length - 1 && parseAnalystResponse(m.content)?.divergences && parseAnalystResponse(m.content)!.divergences.length > 0 && (
+                           <button onClick={() => { setExpandedView(null); handleDebate(parseAnalystResponse(m.content)!.divergences); }} disabled={loadingPhase !== "idle"} className="flex items-center gap-2 px-5 py-2.5 text-sm bg-yellow-500/20 text-yellow-600 dark:text-yellow-500 hover:bg-yellow-500/30 rounded-lg transition font-bold shadow-sm mr-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                             ⚔️ Начать Дебаты
+                           </button>
+                         )}
+                         <div className="flex gap-3 ml-auto">
+                           <button onClick={() => copyToClipboard(textToPlay)} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition border border-transparent hover:border-border shadow-sm">
+                             <Copy className="w-4 h-4" /> Копировать
+                           </button>
+                           <button onClick={() => downloadText(textToPlay, activeSession?.title || "analysis")} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition border border-transparent hover:border-border shadow-sm">
+                             <Download className="w-4 h-4" /> Скачать .md
+                           </button>
+                         </div>
+                       </div>
+                     )}
+
                      <button 
-                        onClick={() => playAudio(m.content, lang, msgId)}
+                        onClick={() => playAudio(textToPlay, lang, msgId)}
                         className={`absolute right-4 top-4 p-2.5 rounded-xl transition-all shadow-sm ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-border'}`}
                         title={isPlaying ? "Остановить" : "Прослушать"}
                         disabled={isLoading}

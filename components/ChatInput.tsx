@@ -1,13 +1,36 @@
 import { T, Lang } from "@/lib/i18n";
-import { Play, Mic, MicOff } from "lucide-react";
+import { Play, Mic, MicOff, Paperclip, X, Loader2 } from "lucide-react";
 
 export function ChatInput({ 
-  lang, input, setInput, isRecording, toggleVoice, handleSend, loadingPhase 
+  lang, input, setInput, isRecording, toggleVoice, handleSend, loadingPhase,
+  attachmentName, isUploadingAttachment, handleFileUpload, removeAttachment
 }: any) {
   return (
     <div className="flex-1 w-full max-w-[800px] relative">
-      <div className="glass-panel p-1.5 pl-4 flex items-center gap-2 border border-border/50 shadow-sm rounded-xl bg-background/60 focus-within:border-primary/50 transition-colors">
+      
+      {attachmentName && (
+        <div className="absolute -top-12 left-4 bg-primary/10 border border-primary/20 text-primary px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 shadow-sm animate-in fade-in slide-in-from-bottom-2 z-10">
+           <Paperclip className="w-3.5 h-3.5" />
+           <span className="truncate max-w-[200px] font-medium">{attachmentName}</span>
+           <button onClick={removeAttachment} className="hover:text-destructive hover:bg-destructive/10 p-0.5 rounded-full transition ml-1">
+             <X className="w-3.5 h-3.5" />
+           </button>
+        </div>
+      )}
+
+      <div className="glass-panel p-1.5 pl-2 flex items-center gap-2 border border-border/50 shadow-sm rounded-xl bg-background/60 focus-within:border-primary/50 transition-colors">
         
+        <input type="file" id="file-upload" className="hidden" accept=".pdf,.txt,.md,.csv" onChange={handleFileUpload} />
+        
+        <button 
+          onClick={() => document.getElementById('file-upload')?.click()}
+          disabled={isUploadingAttachment || loadingPhase !== "idle"}
+          className={`p-2 transition rounded-lg ${isUploadingAttachment ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-muted disabled:opacity-50'}`}
+          title="Прикрепить файл (PDF, TXT)"
+        >
+          {isUploadingAttachment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+        </button>
+
         <textarea 
           value={input}
           onChange={e => setInput(e.target.value)}

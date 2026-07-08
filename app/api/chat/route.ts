@@ -106,6 +106,7 @@ Response from AI 3:
 ${workerAnswers[2]}
 
 Please provide your analysis based on your system instructions.
+IMPORTANT: Your ENTIRE output MUST be a valid JSON object. DO NOT wrap in markdown blocks like \`\`\`json ... \`\`\`. Just return raw JSON.
       `.trim();
 
       const finalMessages = [
