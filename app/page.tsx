@@ -1,50 +1,37 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { T, WIN1_MODELS, WIN2_MODELS, WIN3_MODELS, ANALYST_MODELS, Lang } from "@/lib/i18n";
-import { Menu, PanelLeftClose, Expand, Volume2, Square, X, Loader2, Play, Mic, MicOff, Copy, Download } from "lucide-react";
+import { T, WIN1_MODELS, WIN2_MODELS, WIN3_MODELS, Lang } from "@/lib/i18n";
+import { Menu, PanelLeftClose, X, Loader2 } from "lucide-react";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatInput } from "@/components/ChatInput";
-
-type Message = { role: "user" | "assistant" | "system", content: string };
-
-type ChatSession = {
-  id: string;
-  title: string;
-  messages: Message[];
-  win1: Message[];
-  win2: Message[];
-  win3: Message[];
-  analyst: Message[];
-  analystPrompt: string;
-};
+import { useChatSession } from "@/hooks/useChatSession";
+import { useAudio } from "@/hooks/useAudio";
+import { WorkerWindow } from "@/components/WorkerWindow";
+import { AnalystWindow } from "@/components/AnalystWindow";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>("ru");
   const [welcomeSeen, setWelcomeSeen] = useState(false);
-  const [sessions, setSessions] = useState<Record<string, ChatSession>>({});
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isRecording, setIsRecording] = useState(false);
-  const [loadingPhase, setLoadingPhase] = useState<"idle" | "workers" | "analyst">("idle");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
-  const [audioLoadingId, setAudioLoadingId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
-  const [expandedView, setExpandedView] = useState<{title: string, messages: Message[], wKey: string} | null>(null);
+  const [expandedView, setExpandedView] = useState<{title: string, messages: any[], wKey: string} | null>(null);
 
   const [attachmentName, setAttachmentName] = useState<string | null>(null);
   const [attachmentText, setAttachmentText] = useState<string | null>(null);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 
-  const [models, setModels] = useState({
-    win1: WIN1_MODELS[0],
-    win2: WIN2_MODELS[0],
-    win3: WIN3_MODELS[0],
-    analyst: ANALYST_MODELS[0]
-  });
+  const {
+    sessions, setSessions, activeId, setActiveId, activeSession,
+    loadingPhase, setLoadingPhase, failedModels, setFailedModels,
+    isLoaded, models, setModels
+  } = useChatSession(lang);
+
+  const { playingAudioId, audioLoadingId, playAudio } = useAudio();
 
   const [analystPrompt, setAnalystPrompt] = useState(T[lang].defaultAnalystPrompt);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -52,75 +39,24 @@ export default function Home() {
   const win2Ref = useRef<HTMLDivElement>(null);
   const win3Ref = useRef<HTMLDivElement>(null);
 
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [failedModels, setFailedModels] = useState<string[]>([]);
-  const activeSession = activeId ? sessions[activeId] : null;
-  // Parses URLs into clickable links and basic bold markdown into <strong>
-  const parseMessage = (text: any) => {
-    try {
-      if (typeof text !== 'string') return String(text || '');
-      
-      const urlRegex = /(https?:\/\/[^\s\]\)]+)/g;
-      const parts = text.split(urlRegex);
-      
-      return parts.map((part, i) => {
-        if (part.match(urlRegex)) {
-          return <a key={`link-${i}`} href={part} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{part}</a>;
-        }
-        
-        const boldParts = part.split(/(\*\*.*?\*\*)/g);
-        return <span key={`text-${i}`}>
-          {boldParts.map((bp, j) => {
-            if (bp.startsWith('**') && bp.endsWith('**')) {
-              return <strong key={j} className="text-foreground">{bp.slice(2, -2)}</strong>;
-            }
-            return <span key={j}>{bp}</span>;
-          })}
-        </span>;
-      });
-    } catch (e) {
-      console.error("Parse error:", e);
-      return String(text || '');
-    }
-  };
-
   useEffect(() => {
     try {
-      const savedSessions = localStorage.getItem("bottleneck_sessions");
-      if (savedSessions) setSessions(JSON.parse(savedSessions));
-      
-      const savedActiveId = localStorage.getItem("bottleneck_activeId");
-      if (savedActiveId) setActiveId(savedActiveId);
-
       const savedWelcome = localStorage.getItem("bottleneck_welcomeSeen");
       if (savedWelcome) setWelcomeSeen(savedWelcome === "true");
-
       const savedLang = localStorage.getItem("bottleneck_lang");
       if (savedLang) setLang(savedLang as Lang);
-
-      const savedFailedModels = localStorage.getItem("bottleneck_failedModels");
-      if (savedFailedModels) setFailedModels(JSON.parse(savedFailedModels));
-    } catch(e) {
-      console.error("Failed to load state from localStorage", e);
-    }
-    setIsLoaded(true);
+    } catch(e) {}
   }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
-    localStorage.setItem("bottleneck_sessions", JSON.stringify(sessions));
-    if (activeId) localStorage.setItem("bottleneck_activeId", activeId);
     localStorage.setItem("bottleneck_welcomeSeen", welcomeSeen.toString());
     localStorage.setItem("bottleneck_lang", lang);
-    localStorage.setItem("bottleneck_failedModels", JSON.stringify(failedModels));
-  }, [sessions, activeId, welcomeSeen, lang, failedModels, isLoaded]);
+  }, [welcomeSeen, lang, isLoaded]);
 
   useEffect(() => {
-    // Sync default analyst prompt when language changes
     const isDefault = Object.values(T).some(t => t.defaultAnalystPrompt === analystPrompt);
-    if (isDefault) {
-      setAnalystPrompt(T[lang].defaultAnalystPrompt);
-    }
+    if (isDefault) setAnalystPrompt(T[lang].defaultAnalystPrompt);
     
     if (activeSession) {
       const isSessionDefault = Object.values(T).some(t => t.defaultAnalystPrompt === activeSession.analystPrompt);
@@ -134,17 +70,6 @@ export default function Home() {
   }, [lang, activeSession?.id]);
 
   useEffect(() => {
-    setModels(prev => {
-      let next = { ...prev };
-      if (failedModels.includes(next.win1.id)) next.win1 = WIN1_MODELS.find(m => !failedModels.includes(m.id)) || WIN1_MODELS[0];
-      if (failedModels.includes(next.win2.id)) next.win2 = WIN2_MODELS.find(m => !failedModels.includes(m.id)) || WIN2_MODELS[0];
-      if (failedModels.includes(next.win3.id)) next.win3 = WIN3_MODELS.find(m => !failedModels.includes(m.id)) || WIN3_MODELS[0];
-      if (failedModels.includes(next.analyst.id)) next.analyst = ANALYST_MODELS.find(m => !failedModels.includes(m.id)) || ANALYST_MODELS[0];
-      return next;
-    });
-  }, [failedModels]);
-
-  useEffect(() => {
     if (loadingPhase === "idle") {
        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
        win1Ref.current?.scrollIntoView({ behavior: "smooth" });
@@ -152,40 +77,6 @@ export default function Home() {
        win3Ref.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [sessions, activeId, loadingPhase]);
-
-  const playAudio = async (text: string, currentLang: string, msgId: string) => {
-    if (playingAudioId === msgId && audioRef.current) {
-      audioRef.current.pause();
-      setPlayingAudioId(null);
-      return;
-    }
-
-    if (audioRef.current) {
-      audioRef.current.pause();
-      setPlayingAudioId(null);
-    }
-
-    setAudioLoadingId(msgId);
-    try {
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, lang: currentLang })
-      });
-      const data = await res.json();
-      setAudioLoadingId(null);
-      if (data.audioContent) {
-        const audio = new Audio("data:audio/mp3;base64," + data.audioContent);
-        audioRef.current = audio;
-        audio.onended = () => setPlayingAudioId(null);
-        audio.play();
-        setPlayingAudioId(msgId);
-      }
-    } catch (e) {
-      console.error("Audio play failed", e);
-      setAudioLoadingId(null);
-    }
-  };
 
   const handleSend = async () => {
     if ((!input.trim() && !attachmentText) || loadingPhase !== "idle") return;
@@ -267,11 +158,6 @@ export default function Home() {
       
       currentSession.analyst.push({ role: "user", content: userMsg }, { role: "assistant", content: aData.ansAnalyst });
       setSessions(prev => ({ ...prev, [currentSession!.id]: currentSession! }));
-      
-      // Автоматическая озвучка отключена по просьбе пользователя
-      // const newMsgId = `analyst-${currentSession.analyst.filter(m => m.role !== 'user').length - 1}`;
-      // playAudio(aData.ansAnalyst, lang, newMsgId);
-
     } catch (err) {
       console.error(err);
       alert("Error generating response.");
@@ -340,35 +226,6 @@ export default function Home() {
     } finally {
       setLoadingPhase("idle");
     }
-  };
-
-  const parseAnalystResponse = (content: string) => {
-    try {
-      const match = content.match(/\{[\s\S]*\}/);
-      if (match) {
-        const parsed = JSON.parse(match[0]);
-        if (parsed.final_answer) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
-    return null;
-  };
-
-  const getHallucinationCount = () => {
-    if (!activeSession) return 0;
-    let count = 0;
-    activeSession.analyst.forEach(m => {
-      if (m.role === 'assistant') {
-        const parsed = parseAnalystResponse(m.content);
-        if (parsed && parsed.corrections) {
-          count += parsed.corrections.length;
-        }
-      }
-    });
-    return count;
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -467,6 +324,19 @@ export default function Home() {
     recognition.start();
   };
 
+  const parseAnalystResponse = (content: string) => {
+    try {
+      const match = content.match(/\{[\s\S]*\}/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        if (parsed.final_answer) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return null;
+  };
+
   if (!isLoaded) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-10 h-10 text-primary animate-spin" /></div>;
   }
@@ -517,189 +387,33 @@ export default function Home() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((num) => {
-                const wKey = `win${num}` as keyof typeof models;
-                const history = activeSession ? activeSession[wKey as keyof ChatSession] as Message[] : [];
-                const winModelsArray = (num === 1 ? WIN1_MODELS : num === 2 ? WIN2_MODELS : WIN3_MODELS).filter(m => !failedModels.includes(m.id));
+                const wKey = `win${num}` as "win1" | "win2" | "win3";
+                const history = activeSession ? activeSession[wKey] : [];
+                const winModelsArray = num === 1 ? WIN1_MODELS : num === 2 ? WIN2_MODELS : WIN3_MODELS;
+                const winRef = num === 1 ? win1Ref : num === 2 ? win2Ref : win3Ref;
+                
                 return (
-                  <div key={num} className="glass-panel p-5 flex flex-col h-[500px]">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-bold text-foreground flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                        {T[lang].window} {num}
-                      </h3>
-                      <button 
-                        onClick={() => setExpandedView({ title: T[lang].window + " " + num, messages: history, wKey })}
-                        className="p-1.5 hover:bg-muted rounded-md transition text-muted-foreground"
-                      >
-                        <Expand className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <select 
-                      value={models[wKey].id}
-                      onChange={(e) => setModels(m => ({ ...m, [wKey]: winModelsArray.find(x => x.id === e.target.value)! }))}
-                      className="w-full bg-background border border-border rounded-lg p-2 text-sm text-foreground mb-4 focus:outline-none focus:border-primary"
-                    >
-                      {winModelsArray.map(m => <option key={m.id} value={m.id} className="bg-slate-900 text-white">{m.label}</option>)}
-                    </select>
-
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm text-foreground/90">
-                      {history.length === 0 && <div className="text-muted-foreground italic">{T[lang].waiting}</div>}
-                      {history.filter(m => m.role !== 'user').map((m, i) => {
-                        const msgId = `${wKey}-${i}`;
-                        const isPlaying = playingAudioId === msgId;
-                        const isLoading = audioLoadingId === msgId;
-                        return (
-                          <div key={i} className="p-3 pr-10 rounded-lg bg-muted mr-2 border border-border relative whitespace-pre-wrap">
-                            {parseMessage(m.content)}
-                            <button 
-                              onClick={() => playAudio(m.content, lang, msgId)}
-                              className={`absolute right-2 top-2 p-1.5 rounded-lg transition-all ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-background'}`}
-                              title={isPlaying ? T[lang].stop : T[lang].listen}
-                              disabled={isLoading}
-                            >
-                              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isPlaying ? <Square className="w-4 h-4 fill-current" /> : <Volume2 className="w-4 h-4" />)}
-                            </button>
-                          </div>
-                        );
-                      })}
-                      {loadingPhase === "workers" && <div className="text-primary animate-pulse text-sm">{T[lang].generating}</div>}
-                      <div ref={num === 1 ? win1Ref : num === 2 ? win2Ref : win3Ref} />
-                    </div>
-                  </div>
+                  <WorkerWindow
+                    key={num} num={num} history={history} lang={lang} wKey={wKey}
+                    models={models} setModels={setModels} failedModels={failedModels}
+                    winModelsArray={winModelsArray} loadingPhase={loadingPhase}
+                    winRef={winRef} setExpandedView={setExpandedView}
+                    playAudio={playAudio} playingAudioId={playingAudioId} audioLoadingId={audioLoadingId}
+                  />
                 );
               })}
             </div>
 
-            <div className="glass-panel p-6 border-[2px] border-primary/50 shadow-[0_0_30px_rgba(168,139,255,0.15)] relative overflow-hidden transition-all">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-purple-500/5 pointer-events-none" />
-              
-              <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex items-center gap-4">
-                  <h3 className="font-bold text-lg bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(168,139,255,0.8)] animate-pulse" />
-                    {T[lang].finalTitle}
-                  </h3>
-                  {activeSession && getHallucinationCount() > 0 && (
-                    <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 font-bold shadow-sm animate-in fade-in zoom-in" title={T[lang].analystCorrections}>
-                      🚨 {T[lang].hallucinations}: {getHallucinationCount()}
-                    </div>
-                  )}
-                </div>
-                <button 
-                  onClick={() => setExpandedView({ title: T[lang].finalTitle, messages: activeSession ? activeSession.analyst : [], wKey: 'analyst' })}
-                  className="p-1.5 hover:bg-muted rounded-md transition text-muted-foreground"
-                >
-                  <Expand className="w-4 h-4" />
-                </button>
-              </div>
-
-              <select 
-                value={models.analyst.id}
-                onChange={(e) => setModels(m => ({ ...m, analyst: ANALYST_MODELS.find(x => x.id === e.target.value)! }))}
-                className="w-full lg:w-1/3 bg-background border border-primary/30 rounded-lg p-2 text-sm text-primary mb-4 focus:outline-none focus:border-primary relative z-10"
-              >
-                {ANALYST_MODELS.filter(m => !failedModels.includes(m.id)).map(m => <option key={m.id} value={m.id} className="bg-slate-900 text-white">{m.label}</option>)}
-              </select>
-
-              <textarea 
-                value={analystPrompt}
-                onChange={(e) => {
-                  setAnalystPrompt(e.target.value);
-                  if (activeSession) {
-                    setSessions(s => ({...s, [activeId!]: {...s[activeId!], analystPrompt: e.target.value}}));
-                  }
-                }}
-                rows={12}
-                className="w-full bg-background border border-primary/20 rounded-lg p-3 text-sm text-muted-foreground mb-4 focus:outline-none focus:border-primary min-h-[200px] relative z-10 resize-y"
-                placeholder="Системный промпт Аналитика..."
-              />
-
-              <div className="min-h-[200px] max-h-[600px] overflow-y-auto p-4 bg-muted/50 rounded-xl border border-primary/10 text-foreground relative z-10">
-                {(!activeSession || activeSession.analyst.length === 0) && <div className="text-muted-foreground italic">{T[lang].analyst_waiting}</div>}
-                {activeSession && activeSession.analyst.filter(m => m.role !== 'user').map((m, i) => {
-                   const msgId = `analyst-${i}`;
-                   const isPlaying = playingAudioId === msgId;
-                   const isLoading = audioLoadingId === msgId;
-                   const parsed = parseAnalystResponse(m.content);
-                   const textToPlay = parsed ? parsed.final_answer : m.content;
-                   
-                   return (
-                     <div key={i} className="p-4 pr-12 mb-4 rounded-xl bg-background border border-primary/20 mr-2 shadow-sm relative">
-                       {parsed ? (
-                         <div className="flex flex-col gap-4">
-                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                             {parsed.agreements && parsed.agreements.length > 0 && (
-                               <div className="bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"/> {T[lang].agreements}:</strong>
-                                 <ul className="list-disc pl-4 mt-2 space-y-1">
-                                   {parsed.agreements.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
-                                 </ul>
-                               </div>
-                             )}
-                             {parsed.divergences && parsed.divergences.length > 0 && (
-                               <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500 rounded-full"/> {T[lang].divergences}:</strong>
-                                 <ul className="list-disc pl-4 mt-2 space-y-1">
-                                   {parsed.divergences.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
-                                 </ul>
-                               </div>
-                             )}
-                             {parsed.corrections && parsed.corrections.length > 0 && (
-                               <div className="bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"/> {T[lang].corrections}:</strong>
-                                 <ul className="list-disc pl-4 mt-2 space-y-1">
-                                   {parsed.corrections.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
-                                 </ul>
-                               </div>
-                             )}
-                           </div>
-                           <div className="h-px bg-border my-2 w-full"></div>
-                           <div className="whitespace-pre-wrap leading-relaxed text-sm md:text-base">
-                             {parseMessage(parsed.final_answer)}
-                           </div>
-                         </div>
-                       ) : (
-                         <div className="whitespace-pre-wrap leading-relaxed">
-                           {parseMessage(m.content)}
-                         </div>
-                       )}
-                       
-                       <div className="mt-4 pt-3 border-t border-border flex items-center relative z-10">
-                         {i === activeSession.analyst.filter(m => m.role !== 'user').length - 1 && parsed?.divergences && parsed.divergences.length > 0 && (
-                           <button onClick={() => handleDebate(parsed.divergences)} disabled={loadingPhase !== "idle"} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-yellow-500/20 text-yellow-600 dark:text-yellow-500 hover:bg-yellow-500/30 rounded-lg transition font-medium shadow-sm mr-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                             ⚔️ {T[lang].startDebate}
-                           </button>
-                         )}
-                         <div className="flex gap-2 ml-auto">
-                           <button onClick={() => copyToClipboard(textToPlay)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-muted rounded-md transition border border-transparent hover:border-border">
-                             <Copy className="w-3.5 h-3.5" /> {T[lang].copy}
-                           </button>
-                           <button onClick={() => downloadText(textToPlay, activeSession?.title || "analysis")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-muted rounded-md transition border border-transparent hover:border-border">
-                             <Download className="w-3.5 h-3.5" /> {T[lang].downloadMd}
-                           </button>
-                         </div>
-                       </div>
-                       
-                       <button 
-                         onClick={() => playAudio(textToPlay, lang, msgId)}
-                         className={`absolute right-3 top-3 p-2 rounded-xl transition-all shadow-sm ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-primary/10'}`}
-                         title={isPlaying ? T[lang].stop : T[lang].listen}
-                         disabled={isLoading}
-                       >
-                         {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isPlaying ? <Square className="w-5 h-5 fill-current" /> : <Volume2 className="w-5 h-5" />)}
-                       </button>
-                     </div>
-                   );
-                })}
-                {loadingPhase === "analyst" && <div className="text-primary animate-pulse">{T[lang].analyzing}</div>}
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
-
+            <AnalystWindow 
+              activeSession={activeSession} lang={lang} models={models} setModels={setModels}
+              failedModels={failedModels} analystModelsArray={require('@/lib/i18n').ANALYST_MODELS}
+              analystPrompt={analystPrompt} setAnalystPrompt={setAnalystPrompt}
+              handleDebate={handleDebate} loadingPhase={loadingPhase} messagesEndRef={messagesEndRef}
+              setExpandedView={setExpandedView} playAudio={playAudio} playingAudioId={playingAudioId}
+              audioLoadingId={audioLoadingId} copyToClipboard={copyToClipboard} downloadText={downloadText}
+            />
           </div>
         </div>
-
       </main>
 
       {expandedView && (
@@ -713,11 +427,7 @@ export default function Home() {
             <div className="flex-1 overflow-y-auto pr-4 space-y-6 text-lg text-foreground/90">
                {expandedView.messages.length === 0 && <div className="text-muted-foreground italic">{T[lang].waiting}</div>}
                {expandedView.messages.filter(m => m.role !== 'user').map((m, i) => {
-                 const msgId = `expanded-${expandedView.wKey}-${i}`;
-                 const isPlaying = playingAudioId === msgId;
-                 const isLoading = audioLoadingId === msgId;
-                 
-                 let contentToRender = parseMessage(m.content);
+                 let contentToRender = <MarkdownRenderer content={m.content} />;
                  let textToPlay = m.content;
                  
                  if (expandedView.wKey === 'analyst') {
@@ -754,7 +464,7 @@ export default function Home() {
                            </div>
                            <div className="h-px bg-border my-2 w-full"></div>
                            <div className="whitespace-pre-wrap leading-relaxed text-base md:text-lg">
-                             {parseMessage(parsed.final_answer)}
+                             <MarkdownRenderer content={parsed.final_answer} />
                            </div>
                        </div>
                      ) as any;
@@ -762,35 +472,8 @@ export default function Home() {
                  }
 
                  return (
-                   <div key={i} className="p-6 pr-16 rounded-xl bg-background border border-border shadow-sm relative whitespace-pre-wrap leading-relaxed">
+                   <div key={i} className="p-6 rounded-xl bg-background border border-border shadow-sm relative whitespace-pre-wrap leading-relaxed">
                      {contentToRender}
-                     
-                     {expandedView.wKey === 'analyst' && (
-                       <div className="mt-6 pt-4 border-t border-border flex items-center">
-                         {i === expandedView.messages.filter(m => m.role !== 'user').length - 1 && parseAnalystResponse(m.content)?.divergences && parseAnalystResponse(m.content)!.divergences.length > 0 && (
-                           <button onClick={() => { setExpandedView(null); handleDebate(parseAnalystResponse(m.content)!.divergences); }} disabled={loadingPhase !== "idle"} className="flex items-center gap-2 px-5 py-2.5 text-sm bg-yellow-500/20 text-yellow-600 dark:text-yellow-500 hover:bg-yellow-500/30 rounded-lg transition font-bold shadow-sm mr-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                             ⚔️ {T[lang].startDebate}
-                           </button>
-                         )}
-                         <div className="flex gap-3 ml-auto">
-                           <button onClick={() => copyToClipboard(textToPlay)} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition border border-transparent hover:border-border shadow-sm">
-                             <Copy className="w-4 h-4" /> {T[lang].copy}
-                           </button>
-                           <button onClick={() => downloadText(textToPlay, activeSession?.title || "analysis")} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition border border-transparent hover:border-border shadow-sm">
-                             <Download className="w-4 h-4" /> {T[lang].downloadMd}
-                           </button>
-                         </div>
-                       </div>
-                     )}
-
-                     <button 
-                        onClick={() => playAudio(textToPlay, lang, msgId)}
-                        className={`absolute right-4 top-4 p-2.5 rounded-xl transition-all shadow-sm ${isPlaying || isLoading ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-muted border border-border'}`}
-                        title={isPlaying ? T[lang].stop : T[lang].listen}
-                        disabled={isLoading}
-                     >
-                        {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (isPlaying ? <Square className="w-6 h-6 fill-current" /> : <Volume2 className="w-6 h-6" />)}
-                     </button>
                    </div>
                  );
                })}
