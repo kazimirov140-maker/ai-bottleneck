@@ -17,7 +17,7 @@ const getClientAndModel = (modelId: string, provider: string) => {
   return null;
 };
 
-async function callModel(messages: any[], modelConfig: { id: string; provider: string }, lang: Lang = "en", isFallback = false, attempt = 1): Promise<{content: string, failedModelId?: string}> {
+async function callModel(messages: any[], modelConfig: { id: string; provider: string }, lang: Lang = "en", isFallback = false, attempt = 1, fallbackConfig?: { id: string; provider: string }): Promise<{content: string, failedModelId?: string}> {
   try {
     const { client, id } = getClientAndModel(modelConfig.id, modelConfig.provider)!;
     
@@ -45,12 +45,11 @@ async function callModel(messages: any[], modelConfig: { id: string; provider: s
     if (!isFallback && attempt < 3) {
       console.log(`Retrying ${modelConfig.id} in 1.5 seconds (Attempt ${attempt + 1})...`);
       await new Promise(r => setTimeout(r, 1500));
-      return callModel(messages, modelConfig, lang, isFallback, attempt + 1);
+      return callModel(messages, modelConfig, lang, isFallback, attempt + 1, fallbackConfig);
     }
     
-    if (!isFallback) {
-      // Auto-fallback to a reliable model after all retries fail
-      const fallbackConfig = { id: "llama-3.1-8b-instant", provider: "groq" };
+    if (!isFallback && fallbackConfig) {
+      // Auto-fallback to user-selected fallback model after all retries fail
       try {
         const fallbackRes = await callModel(messages, fallbackConfig, lang, true, 1);
         const warning = T[lang].fallbackWarning.replace('{model}', modelConfig.id);
@@ -70,16 +69,16 @@ async function callModel(messages: any[], modelConfig: { id: string; provider: s
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { phase, messages, models, analystPrompt, workerAnswers, lang = "en" } = body;
+    const { phase, messages, models, fallbackModels, analystPrompt, workerAnswers, lang = "en" } = body;
 
     // phase: "workers" or "analyst"
     // For workers: we expect { phase: "workers", messages: { win1: [], win2: [], win3: [] }, models: { win1, win2, win3 } }
     
     if (phase === "workers") {
       const [res1, res2, res3] = await Promise.all([
-        callModel(messages.win1, models.win1, lang),
-        callModel(messages.win2, models.win2, lang),
-        callModel(messages.win3, models.win3, lang),
+        callModel(messages.win1, models.win1, lang, false, 1, fallbackModels?.win1),
+        callModel(messages.win2, models.win2, lang, false, 1, fallbackModels?.win2),
+        callModel(messages.win3, models.win3, lang, false, 1, fallbackModels?.win3),
       ]);
       return NextResponse.json({ 
         ans1: res1.content, 
@@ -118,7 +117,7 @@ IMPORTANT: Your ENTIRE output MUST be a valid JSON object. DO NOT wrap in markdo
         { role: "user", content: synthesisPrompt }
       ];
 
-      const resAnalyst = await callModel(finalMessages, models.analyst, lang);
+      const resAnalyst = await callModel(finalMessages, models.analyst, lang, false, 1, fallbackModels?.analyst);
       return NextResponse.json({ 
         ansAnalyst: resAnalyst.content,
         failedModels: resAnalyst.failedModelId ? [resAnalyst.failedModelId] : []

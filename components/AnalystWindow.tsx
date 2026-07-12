@@ -59,13 +59,13 @@ export function AnalystWindow({
   const activeModels = analystModelsArray.filter(m => !failedModels.includes(m.id));
 
   return (
-    <div className="glass-panel p-6 border-[2px] border-primary/50 shadow-[0_0_30px_rgba(168,139,255,0.15)] relative overflow-hidden transition-all">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-purple-500/5 pointer-events-none" />
+    <div className="glass-panel p-6 border-[2px] border-primary/50 shadow-[0_0_30px_rgba(59,130,246,0.15)] relative overflow-hidden transition-all">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 pointer-events-none" />
       
       <div className="flex justify-between items-center mb-4 relative z-10">
         <div className="flex items-center gap-4">
-          <h3 className="font-bold text-lg bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(168,139,255,0.8)] animate-pulse" />
+          <h3 className="text-lg font-semibold tracking-tight bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(59,130,246,0.5)] animate-pulse" />
             {T[lang].finalTitle}
           </h3>
           {activeSession && getHallucinationCount() > 0 && (
@@ -113,24 +113,24 @@ export function AnalystWindow({
                   <div className="flex flex-col gap-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                       {parsed.agreements && parsed.agreements.length > 0 && (
-                        <div className="bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 p-3 rounded-lg">
-                          <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"/> {T[lang].agreements}:</strong>
+                        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-lg">
+                          <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-emerald-500 rounded-full"/> {T[lang].agreements}:</strong>
                           <ul className="list-disc pl-4 mt-2 space-y-1">
                             {parsed.agreements.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                           </ul>
                         </div>
                       )}
                       {parsed.divergences && parsed.divergences.length > 0 && (
-                        <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 p-3 rounded-lg">
-                          <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500 rounded-full"/> {T[lang].divergences}:</strong>
+                        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-3 rounded-lg">
+                          <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-amber-500 rounded-full"/> {T[lang].divergences}:</strong>
                           <ul className="list-disc pl-4 mt-2 space-y-1">
                             {parsed.divergences.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                           </ul>
                         </div>
                       )}
                       {parsed.corrections && parsed.corrections.length > 0 && (
-                        <div className="bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 p-3 rounded-lg">
-                          <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"/> {T[lang].corrections}:</strong>
+                        <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-3 rounded-lg">
+                          <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-rose-500 rounded-full"/> {T[lang].corrections}:</strong>
                           <ul className="list-disc pl-4 mt-2 space-y-1">
                             {parsed.corrections.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                           </ul>

@@ -44,6 +44,13 @@ export default function Home() {
     analyst: ANALYST_MODELS[0]
   });
 
+  const [fallbackModels, setFallbackModels] = useState({
+    win1: WIN1_MODELS[1] || WIN1_MODELS[0],
+    win2: WIN2_MODELS[1] || WIN2_MODELS[0],
+    win3: WIN3_MODELS[1] || WIN3_MODELS[0],
+    analyst: ANALYST_MODELS[1] || ANALYST_MODELS[0]
+  });
+
   const [analystPrompt, setAnalystPrompt] = useState(T[lang].defaultAnalystPrompt);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const win1Ref = useRef<HTMLDivElement>(null);
@@ -133,6 +140,7 @@ export default function Home() {
         body: JSON.stringify({
           phase: "workers",
           models,
+          fallbackModels,
           messages: {
             win1: [...currentSession.win1, { role: "user", content: userMsg }],
             win2: [...currentSession.win2, { role: "user", content: userMsg }],
@@ -155,6 +163,7 @@ export default function Home() {
         body: JSON.stringify({
           phase: "analyst",
           models,
+          fallbackModels,
           analystPrompt: currentSession.analystPrompt,
           messages: [...currentSession.analyst, { role: "user", content: userMsg }],
           workerAnswers: [wData.ans1, wData.ans2, wData.ans3]
@@ -205,6 +214,7 @@ export default function Home() {
         body: JSON.stringify({
           phase: "workers",
           models,
+          fallbackModels,
           messages: {
             win1: [...currentSession.win1, { role: "user", content: debateMsg }],
             win2: [...currentSession.win2, { role: "user", content: debateMsg }],
@@ -227,6 +237,7 @@ export default function Home() {
         body: JSON.stringify({
           phase: "analyst",
           models,
+          fallbackModels,
           analystPrompt: currentSession.analystPrompt,
           messages: [...currentSession.analyst, { role: "user", content: debateMsg }],
           workerAnswers: [wData.ans1, wData.ans2, wData.ans3]
@@ -392,7 +403,7 @@ export default function Home() {
             {sidebarOpen ? <PanelLeftClose className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
           <div className="flex items-center">
-            <img src="/logo.png" alt="Logo" className="h-10 md:h-12 w-auto object-contain drop-shadow-[0_0_15px_rgba(168,139,255,0.6)]" />
+            <img src="/logo.png" alt="Logo" className="h-10 md:h-12 w-auto object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
           </div>
         </div>
 
@@ -414,7 +425,7 @@ export default function Home() {
                 return (
                   <div key={num} className="glass-panel p-5 flex flex-col h-[500px]">
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-bold text-foreground flex items-center gap-2">
+                      <h3 className="text-base font-medium text-foreground flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                         {T[lang].window} {num}
                       </h3>
@@ -426,15 +437,28 @@ export default function Home() {
                       </button>
                     </div>
                     
-                    <select 
-                      value={models[wKey].id}
-                      onChange={(e) => setModels(m => ({ ...m, [wKey]: winModelsArray.find(x => x.id === e.target.value)! }))}
-                      className="w-full bg-background border border-border rounded-lg p-2 text-sm text-foreground mb-4 focus:outline-none focus:border-primary"
-                    >
-                      {winModelsArray.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-                    </select>
+                    <div className="flex flex-col gap-2 mb-4">
+                      <select 
+                        value={models[wKey].id}
+                        onChange={(e) => setModels(m => ({ ...m, [wKey]: winModelsArray.find(x => x.id === e.target.value)! }))}
+                        className="w-full bg-background border border-border rounded-lg p-2 text-sm text-foreground focus:outline-none focus:border-primary"
+                      >
+                        {winModelsArray.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                      </select>
 
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm text-foreground/90">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">Запасная:</span>
+                        <select 
+                          value={fallbackModels[wKey].id}
+                          onChange={(e) => setFallbackModels(m => ({ ...m, [wKey]: winModelsArray.find(x => x.id === e.target.value)! }))}
+                          className="flex-1 bg-background border border-border/50 rounded-md p-1 text-xs text-muted-foreground focus:outline-none focus:border-primary"
+                        >
+                          {winModelsArray.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm leading-relaxed text-slate-300">
                       {history.length === 0 && <div className="text-muted-foreground italic">{T[lang].waiting}</div>}
                       {history.filter(m => m.role !== 'user').map((m, i) => {
                         const msgId = `${wKey}-${i}`;
@@ -460,13 +484,13 @@ export default function Home() {
               })}
             </div>
 
-            <div className="glass-panel p-6 border-[2px] border-primary/50 shadow-[0_0_30px_rgba(168,139,255,0.15)] relative overflow-hidden transition-all">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-purple-500/5 pointer-events-none" />
+            <div className="glass-panel p-6 border-[2px] border-primary/50 shadow-[0_0_30px_rgba(59,130,246,0.15)] relative overflow-hidden transition-all">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 pointer-events-none" />
               
               <div className="flex justify-between items-center mb-4 relative z-10">
                 <div className="flex items-center gap-4">
-                  <h3 className="font-bold text-lg bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(168,139,255,0.8)] animate-pulse" />
+                  <h3 className="text-lg font-semibold tracking-tight bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(59,130,246,0.5)] animate-pulse" />
                     {T[lang].finalTitle}
                   </h3>
                   {activeSession && getHallucinationCount() > 0 && (
@@ -483,13 +507,28 @@ export default function Home() {
                 </button>
               </div>
 
-              <select 
-                value={models.analyst.id}
-                onChange={(e) => setModels(m => ({ ...m, analyst: ANALYST_MODELS.find(x => x.id === e.target.value)! }))}
-                className="w-full lg:w-1/3 bg-background border border-primary/30 rounded-lg p-2 text-sm text-primary mb-4 focus:outline-none focus:border-primary relative z-10"
-              >
-                {ANALYST_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-              </select>
+              <div className="flex flex-col lg:flex-row gap-4 mb-4 relative z-10 w-full lg:w-2/3">
+                <div className="flex-1">
+                  <div className="text-xs text-primary mb-1">Основная модель:</div>
+                  <select 
+                    value={models.analyst.id}
+                    onChange={(e) => setModels(m => ({ ...m, analyst: ANALYST_MODELS.find(x => x.id === e.target.value)! }))}
+                    className="w-full bg-background border border-primary/30 rounded-lg p-2 text-sm text-primary focus:outline-none focus:border-primary"
+                  >
+                    {ANALYST_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <div className="text-xs text-muted-foreground mb-1">Запасная модель:</div>
+                  <select 
+                    value={fallbackModels.analyst.id}
+                    onChange={(e) => setFallbackModels(m => ({ ...m, analyst: ANALYST_MODELS.find(x => x.id === e.target.value)! }))}
+                    className="w-full bg-background border border-primary/10 rounded-lg p-2 text-sm text-muted-foreground focus:outline-none focus:border-primary"
+                  >
+                    {ANALYST_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                  </select>
+                </div>
+              </div>
 
               <textarea 
                 value={analystPrompt}
@@ -598,10 +637,10 @@ export default function Home() {
 
       {expandedView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm transition-all duration-300">
-          <div className="glass-panel p-6 w-full max-w-5xl h-[85vh] flex flex-col relative border border-primary/30 shadow-[0_0_40px_rgba(168,139,255,0.15)] animate-in zoom-in-95">
+          <div className="glass-panel p-6 w-full max-w-5xl h-[85vh] flex flex-col relative border border-primary/30 shadow-[0_0_40px_rgba(59,130,246,0.15)] animate-in zoom-in-95">
             <button onClick={() => setExpandedView(null)} className="absolute top-4 right-4 p-2 rounded-lg hover:bg-muted text-muted-foreground transition"><X className="w-6 h-6"/></button>
-            <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-primary shadow-[0_0_10px_rgba(168,139,255,0.8)] animate-pulse" />
+            <h2 className="text-2xl font-semibold tracking-tight mb-6 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-primary shadow-[0_0_10px_rgba(59,130,246,0.5)] animate-pulse" />
               {expandedView.title}
             </h2>
             <div className="flex-1 overflow-y-auto pr-4 space-y-6 text-lg text-foreground/90">

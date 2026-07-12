@@ -363,7 +363,7 @@ export default function Home() {
               {sidebarOpen ? <PanelLeftClose className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
             <div className="flex items-center">
-              <img src="/logo.png" alt="Logo" className="h-10 md:h-12 w-auto object-contain drop-shadow-[0_0_15px_rgba(168,139,255,0.6)]" />
+              <img src="/logo.png" alt="Logo" className="h-10 md:h-12 w-auto object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
             </div>
           </div>
           <ChatInput 
@@ -418,10 +418,10 @@ export default function Home() {
 
       {expandedView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm transition-all duration-300">
-          <div className="glass-panel p-6 w-full max-w-5xl h-[85vh] flex flex-col relative border border-primary/30 shadow-[0_0_40px_rgba(168,139,255,0.15)] animate-in zoom-in-95">
+          <div className="glass-panel p-6 w-full max-w-5xl h-[85vh] flex flex-col relative border border-primary/30 shadow-[0_0_40px_rgba(59,130,246,0.15)] animate-in zoom-in-95">
             <button onClick={() => setExpandedView(null)} className="absolute top-4 right-4 p-2 rounded-lg hover:bg-muted text-muted-foreground transition"><X className="w-6 h-6"/></button>
-            <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-primary shadow-[0_0_10px_rgba(168,139,255,0.8)] animate-pulse" />
+            <h2 className="text-2xl font-semibold tracking-tight mb-6 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-primary shadow-[0_0_10px_rgba(59,130,246,0.5)] animate-pulse" />
               {expandedView.title}
             </h2>
             <div className="flex-1 overflow-y-auto pr-4 space-y-6 text-lg text-foreground/90">
@@ -438,24 +438,24 @@ export default function Home() {
                        <div className="flex flex-col gap-4">
                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                              {parsed.agreements && parsed.agreements.length > 0 && (
-                               <div className="bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"/> {T[lang].agreements}:</strong>
+                               <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-lg">
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-emerald-500 rounded-full"/> {T[lang].agreements}:</strong>
                                  <ul className="list-disc pl-4 mt-2 space-y-1">
                                    {parsed.agreements.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                                  </ul>
                                </div>
                              )}
                              {parsed.divergences && parsed.divergences.length > 0 && (
-                               <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500 rounded-full"/> {T[lang].divergences}:</strong>
+                               <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-3 rounded-lg">
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-amber-500 rounded-full"/> {T[lang].divergences}:</strong>
                                  <ul className="list-disc pl-4 mt-2 space-y-1">
                                    {parsed.divergences.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                                  </ul>
                                </div>
                              )}
                              {parsed.corrections && parsed.corrections.length > 0 && (
-                               <div className="bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 p-3 rounded-lg">
-                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"/> {T[lang].corrections}:</strong>
+                               <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-3 rounded-lg">
+                                 <strong className="flex items-center gap-1"><div className="w-2 h-2 bg-rose-500 rounded-full"/> {T[lang].corrections}:</strong>
                                  <ul className="list-disc pl-4 mt-2 space-y-1">
                                    {parsed.corrections.map((a: string, idx: number) => <li key={idx}>{a}</li>)}
                                  </ul>

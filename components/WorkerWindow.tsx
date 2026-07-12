@@ -30,7 +30,7 @@ export function WorkerWindow({
   return (
     <div className="glass-panel p-5 flex flex-col h-[500px]">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="font-bold text-foreground flex items-center gap-2">
+        <h3 className="text-base font-medium text-foreground flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
           {T[lang].window} {num}
         </h3>
@@ -50,7 +50,7 @@ export function WorkerWindow({
         {activeModels.map(m => <option key={m.id} value={m.id} className="bg-slate-900 text-white">{m.label}</option>)}
       </select>
 
-      <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm text-foreground/90">
+      <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm leading-relaxed text-slate-300">
         {history.length === 0 && <div className="text-muted-foreground italic">{T[lang].waiting}</div>}
         {history.filter(m => m.role !== 'user').map((m, i) => {
           const msgId = `${wKey}-${i}`;

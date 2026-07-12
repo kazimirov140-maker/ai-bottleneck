@@ -15,7 +15,7 @@ export function Sidebar({
       <div className="p-4 flex-1 flex flex-col overflow-hidden w-72">
         <button 
           onClick={() => { setActiveId(null); setInput(""); }}
-          className="w-full py-3 rounded-xl bg-gradient-to-r from-primary/80 to-purple-500/80 hover:from-primary hover:to-purple-500 font-bold mb-6 text-white shadow-[0_0_15px_rgba(168,139,255,0.3)] transition"
+          className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-400/80 to-cyan-400/80 hover:from-blue-400 hover:to-cyan-400 font-semibold tracking-tight mb-6 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)] transition"
         >
           + {T[lang].new_chat}
         </button>

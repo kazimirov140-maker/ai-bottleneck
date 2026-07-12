@@ -173,21 +173,24 @@ DEBES DEVOLVER UN FORMATO JSON ESTRICTO:
 
 export const WIN1_MODELS = [
   { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Speed)", provider: "groq" },
-  { id: "gemma2-9b-it", label: "Gemma 2 9B (Groq)", provider: "groq" },
-  { id: "google/gemini-2.0-flash-lite-preview-02-05:free", label: "Gemini 2.0 Flash Lite (OpenRouter)", provider: "openrouter" }
+  { id: "qwen-2.5-32b", label: "Qwen 2.5 32B (Groq)", provider: "groq" },
+  { id: "google/gemini-2.0-flash-lite-preview-02-05:free", label: "Gemini 2.0 Flash Lite", provider: "openrouter" }
 ];
 
 export const WIN2_MODELS = [
-  { id: "mixtral-8x7b-32768", label: "Mixtral 8x7B (Groq)", provider: "groq" },
-  { id: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (OpenRouter)", provider: "openrouter" }
+  { id: "gemma2-9b-it", label: "Gemma 2 9B (Groq)", provider: "groq" },
+  { id: "meta-llama/llama-3.2-3b-instruct:free", label: "Llama 3.2 3B (Fast)", provider: "openrouter" },
+  { id: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash", provider: "openrouter" }
 ];
 
 export const WIN3_MODELS = [
   { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (Versatile)", provider: "groq" },
-  { id: "google/gemini-2.0-pro-exp-02-05:free", label: "Gemini 2.0 Pro (OpenRouter)", provider: "openrouter" }
+  { id: "deepseek-r1-distill-qwen-32b", label: "DeepSeek R1 Qwen 32B", provider: "groq" },
+  { id: "qwen/qwen-2.5-coder-32b-instruct:free", label: "Qwen 2.5 Coder 32B", provider: "openrouter" }
 ];
 
 export const ANALYST_MODELS = [
-  { id: "deepseek-r1-distill-llama-70b", label: "DeepSeek R1 (Reasoning)", provider: "groq" },
-  { id: "google/gemini-2.0-flash-thinking-exp:free", label: "Gemini 2.0 Thinking (Analytic)", provider: "openrouter" }
+  { id: "deepseek-r1-distill-llama-70b", label: "DeepSeek R1 Llama 70B", provider: "groq" },
+  { id: "google/gemini-2.0-flash-thinking-exp:free", label: "Gemini 2.0 Thinking", provider: "openrouter" },
+  { id: "nvidia/llama-3.1-nemotron-70b-instruct:free", label: "Nemotron 70B (Nvidia)", provider: "openrouter" }
 ];
